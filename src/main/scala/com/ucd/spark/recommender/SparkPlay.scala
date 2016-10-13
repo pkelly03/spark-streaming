@@ -1,9 +1,7 @@
 package com.ucd.spark.recommender
 
 import com.ucd.spark.recommender.DB.buildDataSet
-import org.apache.spark.sql.{SQLContext, SparkSession}
-import org.apache.spark.{SparkConf, SparkContext}
-import org.elasticsearch.spark._
+import org.apache.spark.sql.SparkSession
 import org.elasticsearch.spark.sql._
 
 case class Beer(beerId: String, brewerId: String, abv: Double, style: String, appearance: Double, aroma: Double, palate: Double, taste: Double, overall: Double, profileName: String)
