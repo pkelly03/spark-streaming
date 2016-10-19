@@ -17,17 +17,35 @@ object DB {
 
 object RecommenderApp extends App {
 
+//  def writeDataSetToEs: Unit = {
+//    EsSparkSQL.saveToEs(buildDataSet.toDF, "beers/reviews")
+//  }
+
   val spark = SparkSession.builder.master("local").appName("spark-elastic-search").getOrCreate()
 
   import spark.implicits._
 
-  EsSparkSQL.saveToEs(buildDataSet.toDF, "beers/reviews")
+  val cfg = Map("es.read.field.as.array.include" -> "cons_pol,item_ids,mentions,opinion_ratio,polarity_ratio,pros_pol,senti_avg,related_items,related_items_sims")
 
-  val beers = EsSparkSQL.esDF(spark, "beers/reviews")
+  // read items from schema
+  val items = EsSparkSQL.esDF(spark, "ba:items/ba:items", cfg)
 
-  beers
-    .filter($"overall" > 3)
-    .show
+  // read users from schema
+  val users = EsSparkSQL.esDF(spark, "ba:users/ba:users")
+
+  // sampling
+
+
+//  df_users_sample = df_users.sample(False, 5./df_users.count())
+//  print 'size of sample: ', df_users_sample.count()
+//  df_users_sample.select(['user_id', 'item_ids']).show()
+
+//  items.printSchema
+  items.show
+
+//  items.select(items.)
+
+//  users.show(numRows = 2)
 
 }
 
