@@ -1,7 +1,8 @@
 package com.ucd.spark.recommender
 
 import com.ucd.spark.recommender.DB.buildDataSet
-import org.apache.spark.sql.{DataFrameReader, SparkSession}
+import org.apache.spark.sql.functions.{explode, split}
+import org.apache.spark.sql.{DataFrame, DataFrameReader, SparkSession, functions}
 import org.elasticsearch.spark.sql._
 
 case class Beer(beerId: String, brewerId: String, abv: Double, style: String, appearance: Double, aroma: Double, palate: Double, taste: Double, overall: Double, profileName: String)
@@ -32,25 +33,41 @@ object RecommenderApp extends App {
   val items = EsSparkSQL.esDF(spark, "ba:items/ba:items", itemConfig)
 
   // read users from schema
-  val users = EsSparkSQL.esDF(spark, "ba:users/ba:users", userConfig)
+  val users: DataFrame = EsSparkSQL.esDF(spark, "ba:users/ba:users", userConfig)
 
-  // query
+//  / This would be replaced by explodeArray()
+//  val explodedDepartmentWithEmployeesDF = users.explode($"item_ids")) {
+//    case Row(employee: Seq[Row]) => employee.map(employee =>
+//      Employee(employee(0).asInstanceOf[String], employee(1).asInstanceOf[String], employee(2).asInstanceOf[String])
+//    )
+//  }
+//
   users
-    .where($"user_id" equalTo "beerguzzlerxyz")
-    .select(users.item_ids)
+    .select($"user_id", explode($"item_ids").as("items_ids_1"))
+    .where($"user_id" equalTo "belgianbrown")
+    .show
 
-// df_users.where("user_id = 'matthoc116'").select(explode(df_users.item_ids).alias('seed_item_id'), "*").select(['item_ids', 'seed_item_id', 'user_id']).show()
+//  val df = Seq(("A", "B", "x,y,z", "D")).toDF("x1", "x2", "x3", "x4")
+//  df.withColumn("x3", explode(split($"x3", ",")))
+  // query
+
+  users.withColumn("FlatType", explode($"polarity_ratio")).show
+
+  // df_users.where("user_id = 'matthoc116'").select(explode(df_users.item_ids).alias('seed_item_id'), "*").select(['item_ids', 'seed_item_id', 'user_id']).show()
 
   //  df_users_sample = df_users.sample(False, 5./df_users.count())
   //  print 'size of sample: ', df_users_sample.count()
   //  df_users_sample.select(['user_id', 'item_ids']).show()
 
   //  items.printSchema
-  items.show
+//  items.show
 
   //  items.select(items.)
 
-  users.show
+  users
+    .select($"user_id", $"item_ids")
+    .where($"user_id" equalTo "belgianbrown")
+    .show
 
 }
 
