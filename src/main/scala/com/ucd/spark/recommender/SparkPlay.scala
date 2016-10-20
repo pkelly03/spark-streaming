@@ -35,39 +35,28 @@ object RecommenderApp extends App {
   // read users from schema
   val users: DataFrame = EsSparkSQL.esDF(spark, "ba:users/ba:users", userConfig)
 
-//  / This would be replaced by explodeArray()
-//  val explodedDepartmentWithEmployeesDF = users.explode($"item_ids")) {
-//    case Row(employee: Seq[Row]) => employee.map(employee =>
-//      Employee(employee(0).asInstanceOf[String], employee(1).asInstanceOf[String], employee(2).asInstanceOf[String])
-//    )
-//  }
-//
+  // select/where
+  users
+    .select($"user_id", $"item_ids")
+    .where($"user_id" equalTo "belgianbrown")
+    .show
+
+  // select/explode
   users
     .select($"user_id", explode($"item_ids").as("items_ids_1"))
     .where($"user_id" equalTo "belgianbrown")
     .show
 
-//  val df = Seq(("A", "B", "x,y,z", "D")).toDF("x1", "x2", "x3", "x4")
-//  df.withColumn("x3", explode(split($"x3", ",")))
-  // query
-
-  users.withColumn("FlatType", explode($"polarity_ratio")).show
-
-  // df_users.where("user_id = 'matthoc116'").select(explode(df_users.item_ids).alias('seed_item_id'), "*").select(['item_ids', 'seed_item_id', 'user_id']).show()
-
-  //  df_users_sample = df_users.sample(False, 5./df_users.count())
-  //  print 'size of sample: ', df_users_sample.count()
-  //  df_users_sample.select(['user_id', 'item_ids']).show()
-
-  //  items.printSchema
-//  items.show
-
-  //  items.select(items.)
-
   users
-    .select($"user_id", $"item_ids")
-    .where($"user_id" equalTo "belgianbrown")
+    .sample(false, 20)
+    .select($"user_id", explode($"item_ids").as("items_ids_1"))
     .show
+
+  // with column
+  users
+    .withColumn("FlatType", explode($"polarity_ratio"))
+    .show
+
 
 }
 
