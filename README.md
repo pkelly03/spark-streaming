@@ -132,3 +132,6 @@ curl -XGET 'http://localhost:9200/ba:users/ba:users/_search?q=_id:barnaclebill'
 
 
 ```
+
+# Breeze nlp/scalala 
+https://github.com/scalanlp/breeze/wiki/Quickstart

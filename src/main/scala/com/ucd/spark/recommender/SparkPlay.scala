@@ -5,6 +5,11 @@ import org.apache.spark.sql.functions.{explode, split}
 import org.apache.spark.sql.{DataFrame, DataFrameReader, SparkSession, functions}
 import org.elasticsearch.spark.sql._
 
+import breeze.linalg._
+import breeze.stats.mean
+import breeze.stats.distributions._
+
+
 case class Beer(beerId: String, brewerId: String, abv: Double, style: String, appearance: Double, aroma: Double, palate: Double, taste: Double, overall: Double, profileName: String)
 
 object DB {
@@ -47,17 +52,33 @@ object RecommenderApp extends App {
     .where($"user_id" equalTo "belgianbrown")
     .show
 
-  users
-    .sample(false, 20)
-    .select($"user_id", explode($"item_ids").as("items_ids_1"))
-    .show
+  // TODO: Get sample working
+//  users
+//    .sample(false, 20)
+//    .select($"user_id", explode($"item_ids").as("items_ids_1"))
+//    .show
 
   // with column
   users
     .withColumn("FlatType", explode($"polarity_ratio"))
     .show
 
+  val x = DenseVector.zeros[Double](5)
+  println(x(0))
+  x(3 to 4) := .5
+  println(x)
 
+  val dm = DenseMatrix((1.0,2.0,3.0),
+    (4.0,5.0,6.0))
+
+  println(dm(::, *) + DenseVector(1.0, 4.0))
+
+  // mean
+  println(mean(dm(*, ::)))
+
+  // distributions
+  val expo = new Exponential(0.5)
+  println(breeze.stats.meanAndVariance(expo.samples.take(10000)))
 }
 
 
