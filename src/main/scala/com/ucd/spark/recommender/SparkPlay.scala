@@ -28,11 +28,11 @@ object RecommenderApp extends App {
   //  }
 
   val spark = SparkSession.builder.master("local").appName("spark-elastic-search").getOrCreate()
-
   import spark.implicits._
 
   val itemConfig = Map("es.read.field.as.array.include" -> "cons_pol,item_ids,mentions,opinion_ratio,polarity_ratio,pros_pol,senti_avg,related_items,related_items_sims")
   val userConfig = Map("es.read.field.as.array.include" -> "opinion_ratio,senti_avg,pros_pol,cons_pol,polarity_ratio,mentions,item_ids")
+  val explanationsConfig = Map("es.read.field.as.array.include" -> "target_item_sentiment,pros,target_item_average_rating,worse_count,better_pro_scores,target_item_mentions,cons, worse_con_scores, better_count, cons_comp, pros_comp")
 
   // read items from schema
   val items = EsSparkSQL.esDF(spark, "ba:items/ba:items", itemConfig)
@@ -40,17 +40,21 @@ object RecommenderApp extends App {
   // read users from schema
   val users: DataFrame = EsSparkSQL.esDF(spark, "ba:users/ba:users", userConfig)
 
+  val explanations: DataFrame = EsSparkSQL.esDF(spark, "ba:rec_tarelated_explanation/ba:rec_tarelated_explanation", explanationsConfig)
+
+  explanations.printSchema
+
   // select/where
-  users
-    .select($"user_id", $"item_ids")
-    .where($"user_id" equalTo "belgianbrown")
-    .show
+//  users
+//    .select($"user_id", $"item_ids")
+//    .where($"user_id" equalTo "belgianbrown")
+//    .show
 
   // select/explode
-  users
-    .select($"user_id", explode($"item_ids").as("items_ids_1"))
-    .where($"user_id" equalTo "belgianbrown")
-    .show
+//  users
+//    .select($"user_id", explode($"item_ids").as("items_ids_1"))
+//    .where($"user_id" equalTo "belgianbrown")
+//    .show
 
   // TODO: Get sample working
 //  users
@@ -59,26 +63,34 @@ object RecommenderApp extends App {
 //    .show
 
   // with column
-  users
-    .withColumn("FlatType", explode($"polarity_ratio"))
-    .show
+//  users
+//    .withColumn("FlatType", explode($"polarity_ratio"))
+//    .show
 
-  val x = DenseVector.zeros[Double](5)
-  println(x(0))
-  x(3 to 4) := .5
-  println(x)
 
-  val dm = DenseMatrix((1.0,2.0,3.0),
-    (4.0,5.0,6.0))
+  //  find the average number of items that are reviewed by a user
+  explanations
+      .groupBy($"User_id")
+      .count
+      .show(20)
 
-  println(dm(::, *) + DenseVector(1.0, 4.0))
 
-  // mean
-  println(mean(dm(*, ::)))
-
-  // distributions
-  val expo = new Exponential(0.5)
-  println(breeze.stats.meanAndVariance(expo.samples.take(10000)))
+//  val x = DenseVector.zeros[Double](5)
+//  println(x(0))
+//  x(3 to 4) := .5
+//  println(x)
+//
+//  val dm = DenseMatrix((1.0,2.0,3.0),
+//    (4.0,5.0,6.0))
+//
+//  println(dm(::, *) + DenseVector(1.0, 4.0))
+//
+//  // mean
+//  println(mean(dm(*, ::)))
+//
+//  // distributions
+//  val expo = new Exponential(0.5)
+//  println(breeze.stats.meanAndVariance(expo.samples.take(10000)))
 }
 
 

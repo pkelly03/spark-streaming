@@ -97,9 +97,9 @@ elasticdump --input=./mapping_ba:rec_related.json --output=localhost:9200/ba:rec
 
 Import the data next:
 ```
-elasticdump --input=http://production.es.com:9200/my_index --output=/data/my_index_mapping.json --type=mapping 
-elasticdump --input=http://production.es.com:9200/my_index --output=/data/my_index_mapping.json --type=mapping 
-elasticdump --input=http://production.es.com:9200/my_index --output=/data/my_index_mapping.json --type=mapping 
+elasticdump --input=./mapping_ba:item.json --output=localhost:9200/ba:items  
+elasticdump --input=./mapping_ba:users.json --output=localhost:9200/ba:users  
+elasticdump --input=./mapping_ba:rec_related.json --output=localhost:9200/ba:rec_tarelated  
 ```
 
 ## Notebooks
@@ -129,9 +129,28 @@ https://www.safaribooksonline.com/library/view/elasticsearch-cookbook-/978178355
 
 ```
 curl -XGET 'http://localhost:9200/ba:users/ba:users/_search?q=_id:barnaclebill'
-
-
 ```
 
 # Breeze nlp/scalala 
 https://github.com/scalanlp/breeze/wiki/Quickstart
+
+
+# Notes on where stuff lives in UCD
+```
+
+```
+
+# Schema
+Each beer has 4 features
+
+```
+[“appearance”, “aroma”,  “palate",  “taste”]
+```
+
+So in the index, you might see a Target_item_sentiment of 0.7333333333333333,0.4,0.6,0.6 
+
+# Tasks
+
+Find the average number of items that are reviewed by a user? 
+ 
+ 
