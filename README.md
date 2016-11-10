@@ -90,16 +90,16 @@ npm install -g elasticdump
 
 Import the mappings first:
 ```
-elasticdump --input=./mapping_ba:item.json --output=localhost:9200/ba:items --type=mapping 
-elasticdump --input=./mapping_ba:users.json --output=localhost:9200/ba:users --type=mapping 
-elasticdump --input=./mapping_ba:rec_related.json --output=localhost:9200/ba:rec_tarelated --type=mapping 
+elasticdump --input=./mapping_ba:item.json --output=http://localhost:9200/ba:items --type=mapping
+elasticdump --input=./mapping_ba:users.json --output=http://localhost:9200/ba:users --type=mapping
+elasticdump --input=./mapping_ba:rec_related.json --output=http://localhost:9200/ba:rec_related --type=mapping
 ```
 
 Import the data next:
 ```
-elasticdump --input=./mapping_ba:item.json --output=localhost:9200/ba:items  
-elasticdump --input=./mapping_ba:users.json --output=localhost:9200/ba:users  
-elasticdump --input=./mapping_ba:rec_related.json --output=localhost:9200/ba:rec_tarelated  
+elasticdump --input=./index_ba:items.json --output=http://localhost:9200/ba:items --type=data
+elasticdump --input=./index_ba:users.json --output=http://localhost:9200/ba:users --type=data
+elasticdump --input=./index_ba:rec_related.json --output=http://localhost:9200/ba:rec_related --type=data
 ```
 
 ## Notebooks
