@@ -1,6 +1,6 @@
 val sparkVersion = "2.0.0"
 val breezeVersion = "0.12"
-val elasticSearchHadoopVersion: String = "5.0.0-beta1"
+val elasticSearchHadoopVersion: String = "5.0.0"
 
 libraryDependencies ++= Seq(
   "org.apache.spark" % "spark-core_2.10" % sparkVersion exclude("org.slf4j","slf4j-log4j12") exclude("log4j","log4j"),

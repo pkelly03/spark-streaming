@@ -23,7 +23,14 @@ object Timer {
 }
 object ExplanationsGroupBySingleCore extends App {
 
-  val spark = SparkSession.builder.master("local").appName("spark-elastic-search").getOrCreate()
+  val spark = SparkSession
+    .builder
+    .master("local")
+    .config("es.node","127.0.0.1")
+    .config("es.port","9200")
+    .appName("spark-elastic-search")
+    .getOrCreate()
+
   import spark.implicits._
 
   val itemConfig = Map("es.read.field.as.array.include" -> "cons_pol,item_ids,mentions,opinion_ratio,polarity_ratio,pros_pol,senti_avg,related_items,related_items_sims")
@@ -37,5 +44,29 @@ object ExplanationsGroupBySingleCore extends App {
     .groupBy($"User_id")
     .count
     .show
+  }
+}
+
+object ExplanationsGroupByQuadCore extends App {
+
+  val spark = SparkSession
+    .builder
+    .master("local[*]")
+    .appName("spark-elastic-search-quad")
+    .getOrCreate()
+
+  import spark.implicits._
+
+  val itemConfig = Map("es.read.field.as.array.include" -> "cons_pol,item_ids,mentions,opinion_ratio,polarity_ratio,pros_pol,senti_avg,related_items,related_items_sims")
+  val userConfig = Map("es.read.field.as.array.include" -> "opinion_ratio,senti_avg,pros_pol,cons_pol,polarity_ratio,mentions,item_ids")
+  val explanationsConfig = Map("es.read.field.as.array.include" -> "target_item_sentiment,pros,target_item_average_rating,worse_count,better_pro_scores,target_item_mentions,cons, worse_con_scores, better_count, cons_comp, pros_comp")
+
+  val explanations: DataFrame = EsSparkSQL.esDF(spark, "ba:rec_tarelated_explanation/ba:rec_tarelated_explanation", explanationsConfig)
+
+  time {
+    explanations
+      .groupBy($"User_id")
+      .count
+      .show
   }
 }
