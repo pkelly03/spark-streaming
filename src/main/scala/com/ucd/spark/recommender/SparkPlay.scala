@@ -2,9 +2,8 @@ package com.ucd.spark.recommender
 
 import com.ucd.spark.recommender.DB.buildDataSet
 import org.apache.spark.sql.functions.{explode, split}
-import org.apache.spark.sql.{DataFrame, DataFrameReader, SparkSession, functions}
+import org.apache.spark.sql._
 import org.elasticsearch.spark.sql._
-
 import breeze.linalg._
 import breeze.stats.mean
 import breeze.stats.distributions._
@@ -21,6 +20,7 @@ object DB {
   }
 }
 
+
 object RecommenderApp extends App {
 
   //  def writeDataSetToEs: Unit = {
@@ -32,6 +32,7 @@ object RecommenderApp extends App {
 
   val itemConfig = Map("es.read.field.as.array.include" -> "cons_pol,item_ids,mentions,opinion_ratio,polarity_ratio,pros_pol,senti_avg,related_items,related_items_sims")
   val userConfig = Map("es.read.field.as.array.include" -> "opinion_ratio,senti_avg,pros_pol,cons_pol,polarity_ratio,mentions,item_ids")
+  val recRelatedConfig = Map("es.read.field.as.array.include" -> "related_items_sims,related_items")
   val explanationsConfig = Map("es.read.field.as.array.include" -> "target_item_sentiment,pros,target_item_average_rating,worse_count,better_pro_scores,target_item_mentions,cons, worse_con_scores, better_count, cons_comp, pros_comp")
 
   // read items from schema
@@ -40,9 +41,13 @@ object RecommenderApp extends App {
   // read users from schema
   val users: DataFrame = EsSparkSQL.esDF(spark, "ba:users/ba:users", userConfig)
 
+  val recRelatedItems: DataFrame = EsSparkSQL.esDF(spark, "ba:rec_tarelated/ba:rec_tarelated", recRelatedConfig)
+
   val explanations: DataFrame = EsSparkSQL.esDF(spark, "ba:rec_tarelated_explanation/ba:rec_tarelated_explanation", explanationsConfig)
 
   explanations.printSchema
+
+
 
   // select/where
 //  users
@@ -69,10 +74,10 @@ object RecommenderApp extends App {
 
 
   //  find the average number of items that are reviewed by a user
-  explanations
-      .groupBy($"User_id")
-      .count
-      .show(20)
+//  explanations
+//      .groupBy($"User_id")
+//      .count
+//      .show(20)
 
 
 //  val x = DenseVector.zeros[Double](5)
@@ -91,6 +96,62 @@ object RecommenderApp extends App {
 //  // distributions
 //  val expo = new Exponential(0.5)
 //  println(breeze.stats.meanAndVariance(expo.samples.take(10000)))
+
+  sessionHandler("ffejherb", "68616")
+  case class Item(opinion_ratio: Array[Double], star: Double, item_name: String,
+                  related_items: Array[String], average_rating: Double, polarity_ratio: Array[Double],
+                  mentions: Array[Double])
+
+  case class RelatedItems(related_items: Array[String], related_items_sims: Array[String])
+  def sessionHandler(userId: String, itemId: String) = {
+    val relatedItems = recRelatedItems
+      .select($"related_items", $"related_items_sims")
+      .where($"item_id" equalTo itemId)
+      .as[RelatedItems]
+
+    val userInfo = users
+      .select($"item_ids", $"mentions", $"polarity_ratio")
+      .where($"user_id" equalTo userId)
+
+    relatedItems.printSchema()
+    relatedItems.show()
+
+    val relatedItemsDs = relatedItems.head()
+    val related = relatedItemsDs.related_items :+ itemId
+    val relatedSims = relatedItemsDs.related_items_sims :+ 1
+
+    val relatedItemsZipped = related.zip(relatedSims).toMap
+
+    val itemInfoDs = items
+      .select($"opinion_ratio", $"star", $"item_name", $"related_items", $"average_rating", $"polarity_ratio", $"mentions")
+      .where($"item_id" equalTo 1484)
+      .as[Item]
+
+    val itemInfo = itemInfoDs.head()
+
+    val sessionId = s"$userId#$itemId"
+
+    println("session id : " + sessionId)
+  }
+
+  def dataFrameToCSVRowArray(dataset: Dataset[Row]): Array[String] = {
+    dataset
+      .collect()
+      .map (row => {
+        val rowString = row.toSeq.map {
+          case b: Any => b.toString
+          case _ => "null"
+        }.mkString(",")
+
+        // add only one new line character at the end of each row
+        s"${rowString.stripLineEnd}\n"
+      })
+  }
+
+  def dataSetToList(dataset: Dataset[Row]) = {
+    val x = dataset.collect().foldLeft[List[String]](Nil)((acc, row) => row.mkString :: acc )
+    x
+  }
 }
 
 

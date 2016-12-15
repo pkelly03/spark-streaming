@@ -1,0 +1,1 @@
+spark-shell --jars $(echo /Users/paukelly/code/spark-elasticsearch-msc/target/pack/lib/*.jar | tr ' ' ':') --class com.ucd.spark.recommender.RecommenderApp --master local --executor-memory 1g --name recommender /Users/paukelly/code/spark-elasticsearch-msc/target/scala-2.10/spark-elasticsearch-msc_2.10-0.1-SNAPSHOT.jar
