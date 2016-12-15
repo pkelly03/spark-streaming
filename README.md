@@ -89,17 +89,22 @@ npm install -g elasticdump
 ```
 
 Import the mappings first:
+
+I had to update this tarecrelated to get working
 ```
 elasticdump --input=./mapping_ba:item.json --output=http://localhost:9200/ba:items --type=mapping
 elasticdump --input=./mapping_ba:users.json --output=http://localhost:9200/ba:users --type=mapping
-elasticdump --input=./mapping_ba:rec_related.json --output=http://localhost:9200/ba:rec_related --type=mapping
+elasticdump --input=./mapping_ba:rec_related.json --output=http://localhost:9200/ba:rec_tarelated --type=mapping
 ```
 
 Import the data next:
+
+data is living in your hard disk on 13" laptop under ~/msc/es_files
+
 ```
 elasticdump --input=./index_ba:items.json --output=http://localhost:9200/ba:items --type=data
 elasticdump --input=./index_ba:users.json --output=http://localhost:9200/ba:users --type=data
-elasticdump --input=./index_ba:rec_related.json --output=http://localhost:9200/ba:rec_related --type=data
+elasticdump --input=./index_ba:rec_related.json --output=http://localhost:9200/ba:rec_tarelated --type=data
 ```
 
 ## Notebooks
@@ -153,4 +158,18 @@ So in the index, you might see a Target_item_sentiment of 0.7333333333333333,0.4
 
 Find the average number of items that are reviewed by a user? 
  
- 
+# Limits
+http://unix.stackexchange.com/questions/108174/how-to-persist-ulimit-settings-in-osx-mavericks/221988#221988
+
+# Install elastic hq
+https://github.com/royrusso/elasticsearch-HQ#version-compatibility
+
+```
+./plugin install royrusso/elasticsearch-HQ
+```
+
+And go to:
+
+```
+localhost:9200/_plugin/hq/
+``
