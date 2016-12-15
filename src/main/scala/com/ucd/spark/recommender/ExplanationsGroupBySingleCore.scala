@@ -25,9 +25,12 @@ object ExplanationsGroupBySingleCore extends App {
 
   val spark = SparkSession
     .builder
-    .master("local[*]")
+    .master("local")
+    .config("es.node","127.0.0.1")
+    .config("es.port","9200")
     .appName("spark-elastic-search")
     .getOrCreate()
+
   import spark.implicits._
 
   val itemConfig = Map("es.read.field.as.array.include" -> "cons_pol,item_ids,mentions,opinion_ratio,polarity_ratio,pros_pol,senti_avg,related_items,related_items_sims")
@@ -44,13 +47,14 @@ object ExplanationsGroupBySingleCore extends App {
   }
 }
 
-object ExplanationsGroupUsingTwoExecutors extends App {
+object ExplanationsGroupByQuadCore extends App {
 
   val spark = SparkSession
     .builder
-    .master("local[2]")
-    .appName("spark-elastic-search-2-executors")
+    .master("local[*]")
+    .appName("spark-elastic-search-quad")
     .getOrCreate()
+
   import spark.implicits._
 
   val itemConfig = Map("es.read.field.as.array.include" -> "cons_pol,item_ids,mentions,opinion_ratio,polarity_ratio,pros_pol,senti_avg,related_items,related_items_sims")
