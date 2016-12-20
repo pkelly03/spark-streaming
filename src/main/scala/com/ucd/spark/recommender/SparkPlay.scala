@@ -181,7 +181,12 @@ object RecommenderApp extends App {
         val prosComp: Array[Boolean] = pros :& betterThanCompellingThreshold(betterProScores.toArray)
         val consComp: Array[Boolean] = cons :& betterThanCompellingThreshold(worseProScores.toArray)
 
-        val isComp = prosComp.countNonZeros > 0 || consComp.countNonZeros > 0
+        val proNonZerosCount = prosComp.countNonZeros
+        val consNonZerosCount = consComp.countNonZeros
+        val isComp = proNonZerosCount > 0 || consNonZerosCount > 0
+
+        val betterAverage = if (proNonZerosCount == 0) 0.0 else betterProScoresSum / proNonZerosCount
+        val worseAverage = if (consNonZerosCount == 0) 0.0 else worseProScoresSum / consNonZerosCount
 
         println(s"Score for target item : ${targetItem.item_name}")
         println(s"Better Pro Score Sum : $betterProScoresSum")
