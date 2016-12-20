@@ -1,13 +1,15 @@
 package com.ucd.spark.recommender
 
+import breeze.linalg.support.LiteralRow
+import breeze.storage.Zero
 import com.ucd.spark.recommender.DB.buildDataSet
 import org.apache.spark.sql.functions.{explode, split}
 import org.apache.spark.sql._
 import org.elasticsearch.spark.sql._
-import breeze.linalg._
-import breeze.stats.mean
-import breeze.stats.distributions._
-
+//import breeze.linalg._
+//import breeze.stats.mean
+//import breeze.stats.distributions._
+//import breeze.numerics._
 
 case class Beer(beerId: String, brewerId: String, abv: Double, style: String, appearance: Double, aroma: Double, palate: Double, taste: Double, overall: Double, profileName: String)
 
@@ -103,6 +105,8 @@ object RecommenderApp extends App {
                   mentions: Array[Double])
 
   case class RelatedItems(related_items: Array[String], related_items_sims: Array[String])
+  case class UserInfo(item_ids: Array[String], mentions: Array[Double], polarity_ratio: Array[Double])
+
   def sessionHandler(userId: String, itemId: String) = {
     val relatedItems = recRelatedItems
       .select($"related_items", $"related_items_sims")
@@ -112,26 +116,60 @@ object RecommenderApp extends App {
     val userInfo = users
       .select($"item_ids", $"mentions", $"polarity_ratio")
       .where($"user_id" equalTo userId)
+      .as[UserInfo]
+      .head
 
     relatedItems.printSchema()
     relatedItems.show()
 
     val relatedItemsDs = relatedItems.head()
-    val related = relatedItemsDs.related_items :+ itemId
+    val relatedItemIds = relatedItemsDs.related_items :+ itemId
     val relatedSims = relatedItemsDs.related_items_sims :+ 1
 
-    val relatedItemsZipped = related.zip(relatedSims).toMap
+    val relatedItemsZipped = relatedItemIds.zip(relatedSims).toMap
 
-    val itemInfoDs = items
-      .select($"opinion_ratio", $"star", $"item_name", $"related_items", $"average_rating", $"polarity_ratio", $"mentions")
-      .where($"item_id" equalTo 1484)
-      .as[Item]
-
-    val itemInfo = itemInfoDs.head()
-
+    val itemInfo = relatedItemIds.map(relItemId => {
+      println("Getting items for item : " + relItemId)
+      relItemId -> items
+        .select($"opinion_ratio", $"star", $"item_name", $"related_items", $"average_rating", $"polarity_ratio", $"mentions")
+        .where($"item_id" equalTo relItemId)
+        .as[Item]
+        .head
+    }).toMap
+//    val itemInfo = itemInfoDs.head()
     val sessionId = s"$userId#$itemId"
 
+    generateExplanationBase(userId,itemId, userInfo, itemInfo)
     println("session id : " + sessionId)
+  }
+
+  def generateExplanationBase(userId: String, sessionId: String, userInfo: UserInfo, sessionItemInfo: Map[String, Item]) = {
+
+    import breeze.linalg._
+    import breeze.linalg.NumericOps.Arrays._
+
+    val alternativeSentiment = sessionItemInfo.values.map(item => item.polarity_ratio)
+    println(alternativeSentiment)
+
+    sessionItemInfo.keys.map { targetItemId =>
+      val targetItemOpt = sessionItemInfo.get(targetItemId)
+
+      targetItemOpt.map { targetItem =>
+        val better = alternativeSentiment.map(alternative => {
+          val bools = targetItem.polarity_ratio.:>(alternative)
+          bools.map { b => if (b) 1 else 0 }
+        }).toList
+
+        val betterThanDM = DenseMatrix(better: _*)
+        val betterThanCount = sum(betterThanDM(::, *))
+        println(betterThanCount)
+//        DenseMatrix(x)
+//        val x = (targetItemSentiment :> alternativeSentiment)
+//        println(x)
+      }
+//      val targetItemSentiment = DenseVector(targetItem.)
+    }
+
   }
 
   def dataFrameToCSVRowArray(dataset: Dataset[Row]): Array[String] = {
@@ -153,8 +191,6 @@ object RecommenderApp extends App {
     x
   }
 }
-
-
 
 
 
