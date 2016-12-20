@@ -175,9 +175,13 @@ object RecommenderApp extends App {
 
         val strength = betterProScoresSum - worseProScoresSum
 
-        def betterThanCompellingThreshold(scores: Array[Double]) = scores :> DenseVector.fill[Double](4, CompellingThreshold).toArray
-        val prosComp = pros.asDouble :& betterThanCompellingThreshold(betterProScores.toArray)
-        val consComp = cons.asDouble :& betterThanCompellingThreshold(worseProScores.toArray)
+        def betterThanCompellingThreshold(scores: Array[Double]): Array[Boolean] = {
+          scores :> DenseVector.fill[Double](4, CompellingThreshold).toArray
+        }
+        val prosComp: Array[Boolean] = pros :& betterThanCompellingThreshold(betterProScores.toArray)
+        val consComp: Array[Boolean] = cons :& betterThanCompellingThreshold(worseProScores.toArray)
+
+        val isComp = prosComp.countNonZeros > 0 || consComp.countNonZeros > 0
 
         println(s"Score for target item : ${targetItem.item_name}")
         println(s"Better Pro Score Sum : $betterProScoresSum")
@@ -195,7 +199,6 @@ object RecommenderApp extends App {
     }
 
   }
-
 
 
 
