@@ -1,13 +1,13 @@
 package com.ucd.spark.recommender
 
+import breeze.linalg.support.LiteralRow
+import breeze.storage.Zero
 import com.ucd.spark.recommender.DB.buildDataSet
 import org.apache.spark.sql.functions.{explode, split}
 import org.apache.spark.sql._
 import org.elasticsearch.spark.sql._
-import breeze.linalg._
-import breeze.stats.mean
-import breeze.stats.distributions._
-
+import breeze.linalg.{DenseVector, _}
+import breeze.linalg.NumericOps.Arrays._
 
 case class Beer(beerId: String, brewerId: String, abv: Double, style: String, appearance: Double, aroma: Double, palate: Double, taste: Double, overall: Double, profileName: String)
 
@@ -103,6 +103,8 @@ object RecommenderApp extends App {
                   mentions: Array[Double])
 
   case class RelatedItems(related_items: Array[String], related_items_sims: Array[String])
+  case class UserInfo(item_ids: Array[String], mentions: Array[Double], polarity_ratio: Array[Double])
+
   def sessionHandler(userId: String, itemId: String) = {
     val relatedItems = recRelatedItems
       .select($"related_items", $"related_items_sims")
@@ -112,49 +114,115 @@ object RecommenderApp extends App {
     val userInfo = users
       .select($"item_ids", $"mentions", $"polarity_ratio")
       .where($"user_id" equalTo userId)
+      .as[UserInfo]
+      .head
 
     relatedItems.printSchema()
     relatedItems.show()
 
     val relatedItemsDs = relatedItems.head()
-    val related = relatedItemsDs.related_items :+ itemId
+    val relatedItemIds = relatedItemsDs.related_items :+ itemId
     val relatedSims = relatedItemsDs.related_items_sims :+ 1
 
-    val relatedItemsZipped = related.zip(relatedSims).toMap
+    val relatedItemsZipped = relatedItemIds.zip(relatedSims).toMap
 
-    val itemInfoDs = items
-      .select($"opinion_ratio", $"star", $"item_name", $"related_items", $"average_rating", $"polarity_ratio", $"mentions")
-      .where($"item_id" equalTo 1484)
-      .as[Item]
-
-    val itemInfo = itemInfoDs.head()
-
+    val itemInfo = relatedItemIds.map(relItemId => {
+      println("Getting items for item : " + relItemId)
+      relItemId -> items
+        .select($"opinion_ratio", $"star", $"item_name", $"related_items", $"average_rating", $"polarity_ratio", $"mentions")
+        .where($"item_id" equalTo relItemId)
+        .as[Item]
+        .head
+    }).toMap
+//    val itemInfo = itemInfoDs.head()
     val sessionId = s"$userId#$itemId"
 
+    generateExplanationBase(userId,itemId, userInfo, itemInfo)
     println("session id : " + sessionId)
   }
 
-  def dataFrameToCSVRowArray(dataset: Dataset[Row]): Array[String] = {
-    dataset
-      .collect()
-      .map (row => {
-        val rowString = row.toSeq.map {
-          case b: Any => b.toString
-          case _ => "null"
-        }.mkString(",")
+  def generateExplanationBase(userId: String, sessionId: String, userInfo: UserInfo, sessionItemInfo: Map[String, Item]) = {
 
-        // add only one new line character at the end of each row
-        s"${rowString.stripLineEnd}\n"
-      })
+    import com.ucd.spark.recommender._
+
+    val SentimentThreshold = 0.7
+    val CompellingThreshold = 0.5
+    val alternativeSentiment = sessionItemInfo.values.map(item => item.polarity_ratio)
+    println(alternativeSentiment)
+
+    sessionItemInfo.keys.map { targetItemId =>
+      val targetItemOpt = sessionItemInfo.get(targetItemId)
+
+      targetItemOpt.map { targetItem =>
+
+        val betterThanMatrix = DenseMatrix(compareAgainstAlternativeSentimentUsingOperator(targetItem, alternativeSentiment.toList, "gt"): _*)
+        val worseThanMatrix = DenseMatrix(compareAgainstAlternativeSentimentUsingOperator(targetItem, alternativeSentiment.toList, "lte"): _*)
+        val betterThanCount = sum(betterThanMatrix(::, *))
+        val worseThanCount = sum(worseThanMatrix(::, *)) - 1
+
+        val sessionLength = sessionItemInfo.size.toDouble
+        val betterProScores = betterThanCount.inner.asDouble / sessionLength
+        val worseProScores = worseThanCount.inner.asDouble / sessionLength
+
+        val userMentionsGreaterThanZero = userInfo.mentions :> DenseVector.zeros[Double](4).toArray
+        val targetItemSentimentGreatherThanThreshold = targetItem.polarity_ratio :> DenseVector.fill[Double](4, SentimentThreshold).toArray
+        val targetItemSentimentLessThanOrEqualToThreshold = targetItem.polarity_ratio :<= DenseVector.fill[Double](4, SentimentThreshold).toArray
+        val pros = betterProScores.toArray :> DenseVector.zeros[Double](4).toArray :& targetItemSentimentGreatherThanThreshold :& userMentionsGreaterThanZero
+        val cons = worseProScores.toArray :> DenseVector.zeros[Double](4).toArray :& targetItemSentimentLessThanOrEqualToThreshold :& userMentionsGreaterThanZero
+
+        val betterProScoresSum = betterProScores.dot(DenseVector(pros.asDouble))
+        val worseProScoresSum = worseProScores.dot(DenseVector(cons.asDouble))
+
+        val strength = betterProScoresSum - worseProScoresSum
+
+        def betterThanCompellingThreshold(scores: Array[Double]): Array[Boolean] = {
+          scores :> DenseVector.fill[Double](4, CompellingThreshold).toArray
+        }
+        val prosComp: Array[Boolean] = pros :& betterThanCompellingThreshold(betterProScores.toArray)
+        val consComp: Array[Boolean] = cons :& betterThanCompellingThreshold(worseProScores.toArray)
+
+        val proNonZerosCount = prosComp.countNonZeros
+        val consNonZerosCount = consComp.countNonZeros
+        val isComp = proNonZerosCount > 0 || consNonZerosCount > 0
+
+        val betterAverage = if (proNonZerosCount == 0) 0.0 else betterProScoresSum / proNonZerosCount
+        val worseAverage = if (consNonZerosCount == 0) 0.0 else worseProScoresSum / consNonZerosCount
+
+        println(s"Score for target item : ${targetItem.item_name}")
+        println(s"Better Pro Score Sum : $betterProScoresSum")
+        println(s"Worse Pro Score Sum : $worseProScoresSum")
+        println(s"Strength : $strength")
+
+
+
+//        # normalise better scores to session_length
+//        better_pro_scores = better_count.astype(float) / session_length
+//        worse_con_scores = worse_count.astype(float) / session_length
+
+
+      }
+    }
+
   }
 
-  def dataSetToList(dataset: Dataset[Row]) = {
-    val x = dataset.collect().foldLeft[List[String]](Nil)((acc, row) => row.mkString :: acc )
-    x
+
+
+  def compareAgainstAlternativeSentimentUsingOperator(targetItem: Item, alternativeSentiment: List[Array[Double]], op: String): List[Array[Int]] = {
+    alternativeSentiment.map((alternative: Array[Double]) => {
+      (op match {
+        case "gt" => targetItem.polarity_ratio.:>(alternative)
+        case "lte" => targetItem.polarity_ratio.:<=(alternative)
+      }).map { b => if (b) 1 else 0 }
+    })
+  }
+
+  def getWorseCount(targetItem: Item, alternativeSentiment: List[Array[Double]]): List[Array[Int]] = {
+    alternativeSentiment.map((alternative: Array[Double]) => {
+      val bools = targetItem.polarity_ratio.:<=(alternative)
+      bools.map { b => if (b) 1 else 0 }
+    })
   }
 }
-
-
 
 
 
