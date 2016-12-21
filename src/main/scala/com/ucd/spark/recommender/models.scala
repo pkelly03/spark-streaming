@@ -20,33 +20,33 @@ object models {
 
       s"""---- GENERATED EXPLANATION START FOR $target_item_id----
           |
-            |explanationId : $explanation_id
-          |userId : $user_id
-          |sessionId : $session_id
-          |seedItemId : $seed_item_id
-          |targetItemId : $target_item_id
-          |targetItemMentions : ${target_item_mentions.mkString(",")}
-          |targetItemSentiment : ${target_item_sentiment.mkString(", ")}
-          |betterCount : ${better_count.mkString(", ")}
-          |worseCount : ${worse_count.mkString(", ")}
-          |betterProScores : ${better_pro_scores.mkString(", ")}
-          |worseConScores : ${worse_con_scores.mkString(", ")}
-          |isSeed : $is_seed
+          |explanation_id : $explanation_id
+          |user_id : $user_id
+          |session_id : $session_id
+          |seed_item_id : $seed_item_id
+          |target_item_id : $target_item_id
+          |target_item_mentions : ${target_item_mentions.mkString(",")}
+          |target_item_sentiment : ${target_item_sentiment.mkString(", ")}
+          |better_count : ${better_count.mkString(", ")}
+          |worse_count : ${worse_count.mkString(", ")}
+          |better_pro_scores : ${better_pro_scores.mkString(", ")}
+          |worse_con_scores : ${worse_con_scores.mkString(", ")}
+          |is_seed : $is_seed
           |pros : ${pros.mkString(", ")}
           |cons : ${cons.mkString(", ")}
-          |nPros : $n_pros
-          |nCons : $n_cons
+          |n_pros : $n_pros
+          |n_cons : $n_cons
           |strength : $strength
-          |prosComp : $pros_comp
-          |consComp : $cons_comp
-          |proCompNonZerosCount : $n_pros_comp
-          |consCompNonZerosCount : $n_cons_comp
-          |isComp : $is_comp
-          |betterAverage : $better_avg
-          |worseAverage : $worse_avg
-          |betterAverageComp : $better_avg_comp
-          |worseAverageComp : $worse_avg_comp
-          |strengthComp : $strength_comp
+          |pros_comp : $pros_comp
+          |cons_comp : $cons_comp
+          |n_pros_comp : $n_pros_comp
+          |n_cons_comp : $n_cons_comp
+          |is_comp : $is_comp
+          |better_avg : $better_avg
+          |worse_avg : $worse_avg
+          |better_avg_comp : $better_avg_comp
+          |worse_avg_comp : $worse_avg_comp
+          |strength_comp : $strength_comp
           |
           |---- GENERATED EXPLANATION FINISH FOR $target_item_id----
           |

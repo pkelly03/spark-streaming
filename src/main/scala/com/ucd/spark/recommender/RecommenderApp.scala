@@ -74,10 +74,7 @@ object RecommenderApp extends App {
 
     generateExplanation(userId, itemId, userInfo, itemInfo)
   }
-
-
   sessionHandler("rudzud", "3587")
-
 }
 
 
