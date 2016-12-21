@@ -76,7 +76,7 @@ object RecommenderApp extends App {
   }
 
 
-  sessionHandler("ffejherb", "68616")
+  sessionHandler("rudzud", "3587")
 
 }
 
