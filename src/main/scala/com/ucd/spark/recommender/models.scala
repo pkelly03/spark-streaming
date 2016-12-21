@@ -37,8 +37,8 @@ object models {
           |n_pros : $n_pros
           |n_cons : $n_cons
           |strength : $strength
-          |pros_comp : $pros_comp
-          |cons_comp : $cons_comp
+          |pros_comp : ${pros_comp.mkString(", ")}
+          |cons_comp : ${cons_comp.mkString(", ")}
           |n_pros_comp : $n_pros_comp
           |n_cons_comp : $n_cons_comp
           |is_comp : $is_comp
