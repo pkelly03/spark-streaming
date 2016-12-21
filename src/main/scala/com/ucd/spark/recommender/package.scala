@@ -2,9 +2,6 @@ package com.ucd.spark
 
 import breeze.linalg.DenseVector
 
-/**
-  * Created by paukelly on 20/12/2016.
-  */
 package object recommender {
 
   implicit class RichVectorI(v: DenseVector[Int]) {
