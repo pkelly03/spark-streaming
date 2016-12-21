@@ -1,13 +1,16 @@
-val sparkVersion = "2.0.0"
+scalaVersion := "2.11.8"
+
+val sparkVersion = "2.0.2"
 val breezeVersion = "0.12"
-val elasticSearchHadoopVersion: String = "5.0.0"
+val elasticSearchSparkVersion = "5.1.1"
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" % "spark-core_2.10" % sparkVersion exclude("org.slf4j","slf4j-log4j12") exclude("log4j","log4j"),
-  "org.apache.spark" % "spark-sql_2.10" % sparkVersion exclude("org.slf4j","slf4j-log4j12") exclude("log4j","log4j"),
-  "org.elasticsearch" % "elasticsearch-hadoop" % elasticSearchHadoopVersion,
+  "org.apache.spark" %% "spark-core" % sparkVersion,
+  "org.apache.spark" %% "spark-sql" % sparkVersion,
+  "org.elasticsearch" %% "elasticsearch-spark-20" % elasticSearchSparkVersion,
   "org.scalanlp" %% "breeze" % breezeVersion,
-  "org.scalanlp" %% "breeze-natives" % breezeVersion
+  "org.scalanlp" %% "breeze-natives" % breezeVersion,
+  "ch.qos.logback" % "logback-classic" % "1.1.8"
 )
 
 resolvers += "clojars" at "https://clojars.org/repo"
