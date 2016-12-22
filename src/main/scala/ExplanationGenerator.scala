@@ -20,6 +20,9 @@ object ExplanationGenerator {
     sessionItemInfo.keys.map { targetItemId =>
       val targetItemOpt = sessionItemInfo.get(targetItemId)
 
+      if (targetItemId == "30965") {
+        println("stop here..")
+      }
       targetItemOpt.map { targetItem =>
 
         val targetItemMentions = targetItem.mentions
@@ -28,7 +31,7 @@ object ExplanationGenerator {
         val betterCount = sum(betterThanMatrix(::, *))
         val worseCount = sum(worseThanMatrix(::, *)) - 1
 
-        val sessionLength = sessionItemInfo.size.toDouble
+        val sessionLength = sessionItemInfo.size.toDouble - 1
         val betterProScores = betterCount.inner.asDouble / sessionLength
         val worseConScores = worseCount.inner.asDouble / sessionLength
 
