@@ -7,18 +7,6 @@ import breeze.linalg.NumericOps.Arrays._
 import com.ucd.spark.recommender.ExplanationGenerator.generateExplanation
 import com.ucd.spark.recommender.models.{Explanation, Item, RelatedItems, UserInfo}
 
-case class Beer(beerId: String, brewerId: String, abv: Double, style: String, appearance: Double, aroma: Double, palate: Double, taste: Double, overall: Double, profileName: String)
-
-object DB {
-  def buildDataSet = {
-    val stCules = Beer("47986", "10325", 5.0, "Hefeweizen", 2.5, 2.0, 1.5, 1.5, 1.5, "stcules")
-    val johnMichaelsen = Beer("47986", "10325", 7.7, "German Pilsener", 4.0, 4.5, 4.0, 4.5, 4.0, "johnmichaelsen")
-    val redDiamond = Beer("10789", "1075", 7.2, "Oatmeal Stout", 2.5, 1.5, 2.5, 2.0, 2.0, "RedDiamond")
-    List(stCules, johnMichaelsen, redDiamond)
-  }
-}
-
-
 object RecommenderApp extends App {
 
   val spark = SparkSession.builder.master("local").appName("spark-elastic-search").getOrCreate()
