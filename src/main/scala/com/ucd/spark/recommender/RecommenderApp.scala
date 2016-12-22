@@ -5,7 +5,7 @@ import org.elasticsearch.spark.sql._
 import breeze.linalg.{DenseVector, _}
 import breeze.linalg.NumericOps.Arrays._
 import com.ucd.spark.recommender.ExplanationGenerator.generateExplanation
-import com.ucd.spark.recommender.models.{Item, RelatedItems, UserInfo}
+import com.ucd.spark.recommender.models.{Explanation, Item, RelatedItems, UserInfo}
 
 case class Beer(beerId: String, brewerId: String, abv: Double, style: String, appearance: Double, aroma: Double, palate: Double, taste: Double, overall: Double, profileName: String)
 
@@ -20,10 +20,6 @@ object DB {
 
 
 object RecommenderApp extends App {
-
-  //  def writeDataSetToEs: Unit = {
-  //    EsSparkSQL.saveToEs(buildDataSet.toDF, "beers/reviews")
-  //  }
 
   val spark = SparkSession.builder.master("local").appName("spark-elastic-search").getOrCreate()
 
@@ -59,12 +55,11 @@ object RecommenderApp extends App {
 
     val relatedItemsDs = relatedItems.head()
     val relatedItemIds = relatedItemsDs.related_items :+ itemId
-    val relatedSims = relatedItemsDs.related_items_sims :+ 1
+    val relatedSims: Array[Double] = relatedItemsDs.related_items_sims :+ 1.0
 
-    val relatedItemsZipped = relatedItemIds.zip(relatedSims).toMap
+    val relatedItemsAndSims = relatedItemIds.zip(relatedSims).toMap
 
     val itemInfo = relatedItemIds.map(relItemId => {
-      println("Getting items for item : " + relItemId)
       relItemId -> items
         .select($"opinion_ratio", $"star", $"item_name", $"related_items", $"average_rating", $"polarity_ratio", $"mentions")
         .where($"item_id" equalTo relItemId)
@@ -72,7 +67,10 @@ object RecommenderApp extends App {
         .head
     }).toMap
 
-    generateExplanation(userId, itemId, userInfo, itemInfo)
+    val explanations: List[Explanation] = generateExplanation(userId, itemId, userInfo, itemInfo, relatedItemsAndSims)
+    val explanationsDS = spark.createDataset(explanations)
+
+    EsSparkSQL.saveToEs(explanationsDS, "ba:rec_tarelated_explanation/ba:rec_tarelated_explanation", explanationsConfig)
   }
   sessionHandler("rudzud", "3587")
 }

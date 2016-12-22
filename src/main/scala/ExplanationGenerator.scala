@@ -7,7 +7,8 @@ import breeze.linalg.NumericOps.Arrays._
 
 object ExplanationGenerator {
 
-  def generateExplanation(userId: String, seedItemId: String, userInfo: UserInfo, sessionItemInfo: Map[String, Item]) = {
+  def generateExplanation(userId: String, seedItemId: String, userInfo: UserInfo, sessionItemInfo: Map[String, Item],
+                          relatedItemsAndSims: Map[String, Double]) = {
 
     import com.ucd.spark.recommender._
 
@@ -17,10 +18,10 @@ object ExplanationGenerator {
 
     val alternativeSentiment = sessionItemInfo.values.map(item => item.polarity_ratio)
 
-    sessionItemInfo.keys.map { targetItemId =>
+    val explanations = sessionItemInfo.keys.map { targetItemId =>
       val targetItemOpt = sessionItemInfo.get(targetItemId)
 
-      if (targetItemId == "30965") {
+      if (targetItemId == "7369") {
         println("stop here..")
       }
       targetItemOpt.map { targetItem =>
@@ -75,14 +76,20 @@ object ExplanationGenerator {
 
         val explanationId: String = s"$sessionId##$targetItemId"
 
+        val recSim: Double = relatedItemsAndSims.get(targetItemId).getOrElse(0)
+        val averageRating: Double = sessionItemInfo.get(targetItemId).map(_.average_rating).getOrElse(0)
+
         val explanation = Explanation(explanationId, userId, sessionId, seedItemId, targetItemId, targetItemMentions, targetItem.polarity_ratio,
           betterCount.inner.toArray, worseCount.inner.toArray, betterProScores.toArray, worseConScores.toArray, isSeed, pros, cons,
           proNonZerosCount, consNonZerosCount, strength, prosComp, consComp,proCompNonZerosCount, consCompNonZerosCount,isComp,
-          betterAverage, worseAverage, betterAverageComp, worseAverageComp, strengthComp)
+          betterAverage, worseAverage, betterAverageComp, worseAverageComp, strengthComp, targetItem.average_rating, targetItem.star,
+          recSim, averageRating)
 
         println(explanation.generateReport())
+        explanation
       }
     }
+    explanations.toList.flatten
   }
 
   private def compareAgainstAlternativeSentimentUsingOperator(targetItemSentiment: Array[Double], alternativeSentiment: List[Array[Double]], op: String): List[Array[Int]] = {
