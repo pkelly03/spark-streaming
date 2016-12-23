@@ -55,6 +55,12 @@ object models {
           |target_item_star : $target_item_star
           |average_rating : $average_rating
           |rec_sim : $rec_sim
+          |rank_target_item_star : $rank_target_item_star
+          |rank_target_item_average_rating : $rank_target_item_average_rating
+          |rank_average_rating : $rank_average_rating
+          |rank_rec_sim : $rank_rec_sim
+          |rank_strength : $rank_strength
+          |rank_strength_comp : $rank_strength_comp
           |
           |---- GENERATED EXPLANATION FINISH FOR $target_item_id----
           |

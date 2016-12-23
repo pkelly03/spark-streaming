@@ -21,9 +21,6 @@ object ExplanationGenerator {
     val explanations = sessionItemInfo.keys.map { targetItemId =>
       val targetItemOpt = sessionItemInfo.get(targetItemId)
 
-      if (targetItemId == "7369") {
-        println("stop here..")
-      }
       targetItemOpt.map { targetItem =>
 
         val targetItemMentions = targetItem.mentions

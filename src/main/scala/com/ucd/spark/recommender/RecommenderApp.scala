@@ -56,6 +56,8 @@ object RecommenderApp extends App {
 
     val explanationsWithRanking: Seq[Explanation] = Ranking.enrichWithRanking(explanations)
 
+    explanationsWithRanking.foreach(e => println(e.generateReport()))
+
     val explanationsDS = spark.createDataset(explanationsWithRanking)
 
     EsSparkSQL.saveToEs(explanationsDS, "ba:rec_tarelated_explanation/ba:rec_tarelated_explanation", explanationsConfig)
