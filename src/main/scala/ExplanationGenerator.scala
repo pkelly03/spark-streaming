@@ -79,14 +79,11 @@ object ExplanationGenerator {
         val recSim: Double = relatedItemsAndSims.get(targetItemId).getOrElse(0)
         val averageRating: Double = sessionItemInfo.get(targetItemId).map(_.average_rating).getOrElse(0)
 
-        val explanation = Explanation(explanationId, userId, sessionId, seedItemId, targetItemId, targetItemMentions, targetItem.polarity_ratio,
+        Explanation(explanationId, userId, sessionId, seedItemId, targetItemId, targetItemMentions, targetItem.polarity_ratio,
           betterCount.inner.toArray, worseCount.inner.toArray, betterProScores.toArray, worseConScores.toArray, isSeed, pros, cons,
-          proNonZerosCount, consNonZerosCount, strength, prosComp, consComp,proCompNonZerosCount, consCompNonZerosCount,isComp,
+          proNonZerosCount, consNonZerosCount, strength, prosComp, consComp, proCompNonZerosCount, consCompNonZerosCount, isComp,
           betterAverage, worseAverage, betterAverageComp, worseAverageComp, strengthComp, targetItem.average_rating, targetItem.star,
           recSim, averageRating)
-
-        println(explanation.generateReport())
-        explanation
       }
     }
     explanations.toList.flatten

@@ -15,7 +15,10 @@ object models {
                          n_pros: Int, n_cons: Int, strength: Double, pros_comp: Array[Boolean], cons_comp: Array[Boolean],
                          n_pros_comp: Int, n_cons_comp: Int, is_comp: Boolean, better_avg: Double, worse_avg: Double,
                          better_avg_comp: Double, worse_avg_comp: Double, strength_comp: Double, target_item_average_rating: Double,
-                         target_item_star: Double, rec_sim: Double, average_rating: Double) {
+                         target_item_star: Double, rec_sim: Double, average_rating: Double, rank_target_item_star: Option[Int] = None,
+                         rank_target_item_average_rating: Option[Int] = None, rank_average_rating: Option[Int] = None, rank_rec_sim: Option[Int] = None,
+                         rank_strength: Option[Int] = None, rank_strength_comp: Option[Int] = None
+                        ) {
 
     def generateReport(): String = {
 

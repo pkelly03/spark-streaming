@@ -1,5 +1,4 @@
 package com.ucd.spark.recommender
-import org.apache.spark.sql.functions.{explode, split}
 import org.apache.spark.sql._
 import org.elasticsearch.spark.sql._
 import breeze.linalg.{DenseVector, _}
@@ -38,9 +37,6 @@ object RecommenderApp extends App {
       .as[UserInfo]
       .head
 
-    relatedItems.printSchema()
-    relatedItems.show()
-
     val relatedItemsDs = relatedItems.head()
     val relatedItemIds = relatedItemsDs.related_items :+ itemId
     val relatedSims: Array[Double] = relatedItemsDs.related_items_sims :+ 1.0
@@ -55,11 +51,16 @@ object RecommenderApp extends App {
         .head
     }).toMap
 
+    val fields = Seq("target_item_star", "target_item_average_rating")
     val explanations: List[Explanation] = generateExplanation(userId, itemId, userInfo, itemInfo, relatedItemsAndSims)
-    val explanationsDS = spark.createDataset(explanations)
+
+    val explanationsWithRanking: Seq[Explanation] = Ranking.enrichWithRanking(explanations)
+
+    val explanationsDS = spark.createDataset(explanationsWithRanking)
 
     EsSparkSQL.saveToEs(explanationsDS, "ba:rec_tarelated_explanation/ba:rec_tarelated_explanation", explanationsConfig)
   }
+
   sessionHandler("rudzud", "3587")
 }
 
