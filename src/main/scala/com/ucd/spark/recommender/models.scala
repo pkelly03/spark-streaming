@@ -7,6 +7,7 @@ object models {
                   mentions: Array[Double])
 
   case class RelatedItems(related_items: Array[String], related_items_sims: Array[Double])
+  case class RelatedItem(related_item_id: String)
   case class UserInfo(item_ids: Array[String], mentions: Array[Double], polarity_ratio: Array[Double])
 
   case class Explanation(explanation_id: String, user_id: String, session_id: String, seed_item_id: String, target_item_id: String,

@@ -9,8 +9,6 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-sql" % sparkVersion,
   "org.apache.spark" %% "spark-mllib" % sparkVersion,
   "org.elasticsearch" %% "elasticsearch-spark-20" % elasticSearchSparkVersion,
-//  "org.scalanlp" %% "breeze" % breezeVersion,
-//  "org.scalanlp" %% "breeze-natives" % breezeVersion,
   "ch.qos.logback" % "logback-classic" % "1.1.8"
 )
 

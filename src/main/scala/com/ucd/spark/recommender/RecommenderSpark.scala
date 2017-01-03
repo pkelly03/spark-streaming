@@ -1,8 +1,11 @@
 package com.ucd.spark.recommender
 
-import com.ucd.spark.recommender.models.{RelatedItems, UserInfo}
+import breeze.linalg._
+import com.ucd.spark.recommender.models.{Item, RelatedItem, RelatedItems, UserInfo}
+import org.apache.spark.sql.functions.{explode, udf}
 import org.apache.spark.sql.{SparkSession, _}
 import org.elasticsearch.spark.sql.EsSparkSQL
+import org.apache.spark.sql.functions.col
 
 object RecommenderSpark extends App {
 
@@ -24,18 +27,73 @@ object RecommenderSpark extends App {
   val recRelatedItems: DataFrame = EsSparkSQL.esDF(spark.sqlContext, "ba:rec_tarelated/ba:rec_tarelated", recRelatedConfig)
 
   def sessionHandler(userId: String, itemId: String) = {
+
     val relatedItems = recRelatedItems
-      .select($"related_items", $"related_items_sims")
+      .select(explode($"related_items").as("related_item_id"))
       .where($"item_id" equalTo itemId)
-      .as[RelatedItems]
+      .as[String]
+      .collect
 
-    val userInfo = users
-      .select($"item_ids", $"mentions", $"polarity_ratio")
-      .where($"user_id" equalTo userId)
-      .as[UserInfo]
-      .head
+    val itemsList: Seq[Dataset[Item]] = relatedItems.map(relItemId => {
+      items
+        .select($"opinion_ratio", $"star", $"item_name", $"related_items", $"average_rating", $"polarity_ratio", $"mentions")
+        .where($"item_id" equalTo relItemId)
+        .as[Item]
+    })
 
-    val betterCount = relatedItems.withColumn("betterCount", null)
+    val alternativeSentiment = itemsList.flatMap(item => item.select($"polarity_ratio").as[Array[Double]].collect)
 
+    def betterThanCount = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+
+        val betterFunc = udf { polarityRatio: Seq[Double] =>
+          val betterThanMatrix = DenseMatrix(compareAgainstAlternativeSentimentUsingOperator(polarityRatio.toArray, alternativeSentiment.toList, "gt"): _*)
+          sum(betterThanMatrix(::, *)).inner.asDouble.toArray
+        }
+        item.withColumn("better_count", betterFunc('polarity_ratio.as[Seq[Double]])).as[Item]
+      }
+    }
+
+    def worseThanCount = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+
+        val worseThanFunc = udf { polarityRatio: Seq[Double] =>
+          val betterThanMatrix = DenseMatrix(compareAgainstAlternativeSentimentUsingOperator(polarityRatio.toArray, alternativeSentiment.toList, "lte"): _*)
+          (sum(betterThanMatrix(::, *)) - 1).inner.asDouble.toArray
+        }
+        item.withColumn("worse_count", worseThanFunc('polarity_ratio.as[Seq[Double]])).as[Item]
+      }
+    }
+
+    itemsList.foreach { item =>
+      item.printSchema()
+      val pipeline = betterThanCount | worseThanCount
+      pipeline.apply(item).show(10)
+    }
+  }
+
+  private def compareAgainstAlternativeSentimentUsingOperator(targetItemSentiment: Array[Double], alternativeSentiment: List[Array[Double]], op: String): List[Array[Int]] = {
+    import breeze.linalg.NumericOps.Arrays._
+    alternativeSentiment.map((alternative: Array[Double]) => {
+      (op match {
+        case "gt" => targetItemSentiment.:>(alternative)
+        case "lte" => targetItemSentiment.:<=(alternative)
+      }).map { b => if (b) 1 else 0 }
+    })
+  }
+
+  sessionHandler("rudzud", "3587")
+}
+
+trait Pipe[In, Out] extends Serializable {
+  def apply(rdd: Dataset[In]): Dataset[Out]
+
+  def |[Final](next: Pipe[Out, Final]): Pipe[In, Final] = {
+    // Close over outer object
+    val self = this
+    new Pipe[In, Final] {
+      // Run first transform, pass results to next
+      def apply(ds: Dataset[In]) = next(self(ds))
+    }
   }
 }
