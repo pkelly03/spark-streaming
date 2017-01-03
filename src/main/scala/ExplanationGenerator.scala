@@ -7,6 +7,24 @@ import breeze.linalg.NumericOps.Arrays._
 
 object ExplanationGenerator {
 
+  def generateExplanation2(userId: String, seedItemId: String, userInfo: UserInfo, sessionItemInfo: Map[String, Item],
+                          relatedItemsAndSims: Map[String, Double]) = {
+
+    val alternativeSentiment = sessionItemInfo.values.map(item => item.polarity_ratio)
+
+    val explanations = sessionItemInfo.keys.map { targetItemId =>
+      val targetItemOpt = sessionItemInfo.get(targetItemId)
+
+      targetItemOpt.map { targetItem =>
+
+        val targetItemMentions = targetItem.mentions
+        val betterThanMatrix = DenseMatrix(compareAgainstAlternativeSentimentUsingOperator(targetItem.polarity_ratio, alternativeSentiment.toList, "gt"): _*)
+        println("Better")
+      }
+    }
+    null
+  }
+
   def generateExplanation(userId: String, seedItemId: String, userInfo: UserInfo, sessionItemInfo: Map[String, Item],
                           relatedItemsAndSims: Map[String, Double]) = {
 

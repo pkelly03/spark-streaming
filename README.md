@@ -173,3 +173,14 @@ And go to:
 ```
 localhost:9200/_plugin/hq/
 ``
+
+References
+
+- Do a simple compose example using pipe - http://www.vistarmedia.com/labs/Composition-in-Apache-Spark
+- Predicting Breast Cancer with Spark - https://www.mapr.com/blog/predicting-breast-cancer-using-apache-spark-machine-learning-logistic-regression
+- Have a look at this might be able to get an idea about pipelines in scala - https://www.youtube.com/watch?v=em7ztRTYjR4
+- Advanced Analytics with Spark
+- Spark uses breeze in its linalg functions - https://spark.apache.org/docs/latest/ml-guide.html
+- Code snippets to investigate - https://github.com/xsankar/fdps-v3/
+- High performance linear algebra in scala - http://fommil.github.io/scalax14/#/11
+- Watch this - https://skillsmatter.com/skillscasts/5849-high-performance-linear-algebra-in-scala
