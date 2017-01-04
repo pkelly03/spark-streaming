@@ -45,7 +45,7 @@ object RecommenderApp extends App {
 
     val itemInfo = relatedItemIds.map(relItemId => {
       relItemId -> items
-        .select($"opinion_ratio", $"star", $"item_name", $"related_items", $"average_rating", $"polarity_ratio", $"mentions")
+        .select($"item_id", $"opinion_ratio", $"star", $"item_name", $"related_items", $"average_rating", $"polarity_ratio", $"mentions")
         .where($"item_id" equalTo relItemId)
         .as[Item]
         .head

@@ -27,11 +27,11 @@ object RecommenderSpark extends App {
 
   val recRelatedItems: DataFrame = EsSparkSQL.esDF(spark.sqlContext, "ba:rec_tarelated/ba:rec_tarelated", recRelatedConfig)
 
-  def sessionHandler(userId: String, itemId: String) = {
+  def sessionHandler(userId: String, seedItemId: String) = {
 
     val relatedItems = recRelatedItems
       .select(explode($"related_items").as("related_item_id"))
-      .where($"item_id" equalTo itemId)
+      .where($"item_id" equalTo seedItemId)
       .as[String]
       .collect
 
@@ -45,7 +45,7 @@ object RecommenderSpark extends App {
 
     val itemsList: Seq[Dataset[Item]] = relatedItems.map(relItemId => {
       items
-        .select($"opinion_ratio", $"star", $"item_name", $"related_items", $"average_rating", $"polarity_ratio", $"mentions")
+        .select($"item_id", $"opinion_ratio", $"star", $"item_name", $"related_items", $"average_rating", $"polarity_ratio", $"mentions")
         .where($"item_id" equalTo relItemId)
         .as[Item]
     })
@@ -96,9 +96,6 @@ object RecommenderSpark extends App {
       }
     }
 
-//    val targetItemSentimentGreatherThanThreshold = targetItem.polarity_ratio :> DenseVector.fill[Double](4, SentimentThreshold).toArray
-//    val targetItemSentimentLessThanOrEqualToThreshold = targetItem.polarity_ratio :<= DenseVector.fill[Double](4, SentimentThreshold).toArray
-
     def pros = new Pipe[Item, Item] {
       def apply(item: Dataset[Item]): Dataset[Item] = {
 
@@ -123,8 +120,39 @@ object RecommenderSpark extends App {
       }
     }
 
+    def betterProScoresSum = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+
+        val betterProScoresSumFunc = udf { (betterProScores: Seq[Double], pros: Seq[Boolean]) =>
+          DenseVector(betterProScores.toArray).dot(DenseVector(pros.toArray.asDouble))
+        }
+        item.withColumn("better_pro_scores_sum", betterProScoresSumFunc('better_pro_scores.as[Seq[Double]],'pros.as[Seq[Double]])).as[Item]
+      }
+    }
+
+    def worseConScoresSum = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+
+        val betterProScoresSumFunc = udf { (worseConsScores: Seq[Double], cons: Seq[Boolean]) =>
+          DenseVector(worseConsScores.toArray).dot(DenseVector(cons.toArray.asDouble))
+        }
+        item.withColumn("worse_con_scores_sum", betterProScoresSumFunc('worse_cons_scores.as[Seq[Double]],'cons.as[Seq[Double]])).as[Item]
+      }
+    }
+
+    def isSeed = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+
+        val isSeedFunc = udf { itemId: String =>
+          itemId == seedItemId
+        }
+        item.withColumn("is_seed", isSeedFunc('item_id)).as[Item]
+      }
+    }
+
     itemsList.foreach { item =>
-      val pipeline = betterThanCount | worseThanCount | betterProScores | worseConScores | pros | cons
+      val pipeline = betterThanCount | worseThanCount | betterProScores | worseConScores | pros | cons | betterProScoresSum |
+        worseConScoresSum | isSeed
       pipeline.apply(item).show(10)
     }
   }
