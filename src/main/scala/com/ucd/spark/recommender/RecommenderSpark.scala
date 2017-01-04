@@ -1,6 +1,7 @@
 package com.ucd.spark.recommender
 
 import breeze.linalg._
+import breeze.linalg.NumericOps.Arrays._
 import com.ucd.spark.recommender.models.{Item, RelatedItem, RelatedItems, UserInfo}
 import org.apache.spark.sql.functions.{explode, udf}
 import org.apache.spark.sql.{SparkSession, _}
@@ -33,6 +34,14 @@ object RecommenderSpark extends App {
       .where($"item_id" equalTo itemId)
       .as[String]
       .collect
+
+    val userInfo = users
+      .select($"item_ids", $"mentions", $"polarity_ratio")
+      .where($"user_id" equalTo userId)
+      .as[UserInfo]
+      .head
+
+    val SentimentThreshold = 0.7
 
     val itemsList: Seq[Dataset[Item]] = relatedItems.map(relItemId => {
       items
@@ -87,14 +96,28 @@ object RecommenderSpark extends App {
       }
     }
 
+//    val targetItemSentimentGreatherThanThreshold = targetItem.polarity_ratio :> DenseVector.fill[Double](4, SentimentThreshold).toArray
+//    val targetItemSentimentLessThanOrEqualToThreshold = targetItem.polarity_ratio :<= DenseVector.fill[Double](4, SentimentThreshold).toArray
+
+    def pros = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+
+        val prosFunc = udf { (betterProScores: Seq[Double], polarityRatio: Seq[Double]) =>
+          val userMentionsGreaterThanZero = userInfo.mentions :> DenseVector.zeros[Double](4).toArray
+          val targetItemSentimentGreatherThanThreshold = polarityRatio.toArray :> DenseVector.fill[Double](4, SentimentThreshold).toArray
+          betterProScores.toArray :> DenseVector.zeros[Double](4).toArray :& targetItemSentimentGreatherThanThreshold :& userMentionsGreaterThanZero
+        }
+        item.withColumn("pros", prosFunc('better_pro_scores.as[Seq[Double]],'polarity_ratio.as[Seq[Double]])).as[Item]
+      }
+    }
+
     itemsList.foreach { item =>
-      val pipeline = betterThanCount | worseThanCount | betterProScores | worseConScores
+      val pipeline = betterThanCount | worseThanCount | betterProScores | worseConScores | pros
       pipeline.apply(item).show(10)
     }
   }
 
   private def compareAgainstAlternativeSentimentUsingOperator(targetItemSentiment: Array[Double], alternativeSentiment: List[Array[Double]], op: String): List[Array[Int]] = {
-    import breeze.linalg.NumericOps.Arrays._
     alternativeSentiment.map((alternative: Array[Double]) => {
       (op match {
         case "gt" => targetItemSentiment.:>(alternative)
