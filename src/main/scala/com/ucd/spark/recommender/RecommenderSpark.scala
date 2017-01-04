@@ -111,8 +111,20 @@ object RecommenderSpark extends App {
       }
     }
 
+    def cons = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+
+        val consFunc = udf { (worseCScores: Seq[Double], polarityRatio: Seq[Double]) =>
+          val userMentionsGreaterThanZero = userInfo.mentions :> DenseVector.zeros[Double](4).toArray
+          val targetItemSentimentLessThanOrEqualToThreshold = polarityRatio.toArray :<= DenseVector.fill[Double](4, SentimentThreshold).toArray
+          worseCScores.toArray :> DenseVector.zeros[Double](4).toArray :& targetItemSentimentLessThanOrEqualToThreshold :& userMentionsGreaterThanZero
+        }
+        item.withColumn("cons", consFunc('worse_cons_scores.as[Seq[Double]],'polarity_ratio.as[Seq[Double]])).as[Item]
+      }
+    }
+
     itemsList.foreach { item =>
-      val pipeline = betterThanCount | worseThanCount | betterProScores | worseConScores | pros
+      val pipeline = betterThanCount | worseThanCount | betterProScores | worseConScores | pros | cons
       pipeline.apply(item).show(10)
     }
   }
