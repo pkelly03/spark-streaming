@@ -65,9 +65,30 @@ object RecommenderSpark extends App {
       }
     }
 
+    def betterProScores = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+
+        val betterProScoresFunc = udf { betterCount: Seq[Double] =>
+          val sessionLength = itemsList.size.toDouble - 1
+          (DenseVector(betterCount.toArray) / sessionLength).toArray
+        }
+        item.withColumn("better_pro_scores", betterProScoresFunc('better_count.as[Seq[Double]])).as[Item]
+      }
+    }
+
+    def worseConScores = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+
+        val worseConScoresFunc = udf { worseCount: Seq[Double] =>
+          val sessionLength = itemsList.size.toDouble - 1
+          (DenseVector(worseCount.toArray) / sessionLength).toArray
+        }
+        item.withColumn("worse_cons_scores", worseConScoresFunc('worse_count.as[Seq[Double]])).as[Item]
+      }
+    }
+
     itemsList.foreach { item =>
-      item.printSchema()
-      val pipeline = betterThanCount | worseThanCount
+      val pipeline = betterThanCount | worseThanCount | betterProScores | worseConScores
       pipeline.apply(item).show(10)
     }
   }
