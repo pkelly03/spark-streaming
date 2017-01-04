@@ -33,7 +33,7 @@ object RecommenderSpark extends App {
       .select(explode($"related_items").as("related_item_id"))
       .where($"item_id" equalTo seedItemId)
       .as[String]
-      .collect
+      .collect :+ seedItemId
 
     val userInfo = users
       .select($"item_ids", $"mentions", $"polarity_ratio")
