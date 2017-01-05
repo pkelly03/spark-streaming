@@ -175,9 +175,59 @@ object RecommenderSpark extends App {
       }
     }
 
+    def consComp = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+
+        val consCompFunc = udf { (cons: Seq[Boolean], worseConScores: Seq[Double]) =>
+          cons.toArray :& betterThanCompellingThreshold(worseConScores.toArray)
+        }
+        item.withColumn("cons_comp", consCompFunc('cons.as[Seq[Boolean]],'worse_cons_scores.as[Seq[Double]])).as[Item]
+      }
+    }
+
+    def proNonZerosCount = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+
+        val proNonZerosCountFunc = udf { pros: Seq[Boolean] =>
+          pros.toArray.countNonZeros
+        }
+        item.withColumn("pro_non_zeros_count", proNonZerosCountFunc('pros.as[Seq[Boolean]])).as[Item]
+      }
+    }
+
+    def consNonZerosCount = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+
+        val consNonZerosCountFunc = udf { cons: Seq[Boolean] =>
+          cons.toArray.countNonZeros
+        }
+        item.withColumn("cons_non_zeros_count", consNonZerosCountFunc('cons.as[Seq[Boolean]])).as[Item]
+      }
+    }
+
+    def proCompNonZerosCount = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+
+        val proCompNonZerosCountFunc = udf { prosComp: Seq[Boolean] =>
+          prosComp.toArray.countNonZeros
+        }
+        item.withColumn("pro_comp_non_zeros_count", proCompNonZerosCountFunc('pros_comp.as[Seq[Boolean]])).as[Item]
+      }
+    }
+
+    def consCompNonZerosCount = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+        val consCompNonZerosCountFunc = udf { consComp: Seq[Boolean] =>
+          consComp.toArray.countNonZeros
+        }
+        item.withColumn("cons_comp_non_zeros_count", consCompNonZerosCountFunc('cons_comp.as[Seq[Boolean]])).as[Item]
+      }
+    }
+
     itemsList.foreach { item =>
       val pipeline = betterThanCount | worseThanCount | betterProScores | worseConScores | pros | cons | betterProScoresSum |
-        worseConScoresSum | isSeed | strength | prosComp
+        worseConScoresSum | isSeed | strength | prosComp | consComp | proNonZerosCount | consNonZerosCount |
+        proCompNonZerosCount | consCompNonZerosCount
       pipeline.apply(item).show(10)
     }
   }
