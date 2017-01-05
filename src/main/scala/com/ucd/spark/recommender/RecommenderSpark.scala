@@ -42,6 +42,7 @@ object RecommenderSpark extends App {
       .head
 
     val SentimentThreshold = 0.7
+    val CompellingThreshold = 0.5
 
     val itemsList: Seq[Dataset[Item]] = relatedItems.map(relItemId => {
       items
@@ -160,9 +161,23 @@ object RecommenderSpark extends App {
       }
     }
 
+    def betterThanCompellingThreshold(scores: Array[Double]): Array[Boolean] = {
+      scores :> DenseVector.fill[Double](4, CompellingThreshold).toArray
+    }
+
+    def prosComp = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+
+        val prosCompFunc = udf { (pros: Seq[Boolean], betterProScores: Seq[Double]) =>
+          pros.toArray :& betterThanCompellingThreshold(betterProScores.toArray)
+        }
+        item.withColumn("pros_comp", prosCompFunc('pros.as[Seq[Boolean]],'better_pro_scores.as[Seq[Double]])).as[Item]
+      }
+    }
+
     itemsList.foreach { item =>
       val pipeline = betterThanCount | worseThanCount | betterProScores | worseConScores | pros | cons | betterProScoresSum |
-        worseConScoresSum | isSeed | strength
+        worseConScoresSum | isSeed | strength | prosComp
       pipeline.apply(item).show(10)
     }
   }
