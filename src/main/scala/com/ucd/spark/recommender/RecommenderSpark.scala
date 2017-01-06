@@ -224,10 +224,37 @@ object RecommenderSpark extends App {
       }
     }
 
+    def isComp = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+        val isCompFunc = udf { (proCompNonZerosCount: Int, consCompNonZerosCount: Int) =>
+          proCompNonZerosCount > 0 || consCompNonZerosCount > 0
+        }
+        item.withColumn("is_comp", isCompFunc('pro_comp_non_zeros_count,'cons_comp_non_zeros_count)).as[Item]
+      }
+    }
+
+    def betterAverage = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+        val betterAverageFunc = udf { (betterProScoresSum: Double, proCompNonZerosCount: Int) =>
+          if (proCompNonZerosCount == 0) 0.0 else betterProScoresSum / proCompNonZerosCount
+        }
+        item.withColumn("better_average", betterAverageFunc('better_pro_scores_sum,'pro_comp_non_zeros_count)).as[Item]
+      }
+    }
+
+    def worseAverage = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+        val betterAverageFunc = udf { (worseConScoresSum: Double, consCompNonZerosCount: Int) =>
+          if (consCompNonZerosCount == 0) 0.0 else worseConScoresSum / consCompNonZerosCount
+        }
+        item.withColumn("worse_average", betterAverageFunc('worse_con_scores_sum,'cons_comp_non_zeros_count)).as[Item]
+      }
+    }
+
     itemsList.foreach { item =>
       val pipeline = betterThanCount | worseThanCount | betterProScores | worseConScores | pros | cons | betterProScoresSum |
         worseConScoresSum | isSeed | strength | prosComp | consComp | proNonZerosCount | consNonZerosCount |
-        proCompNonZerosCount | consCompNonZerosCount
+        proCompNonZerosCount | consCompNonZerosCount | isComp | betterAverage | worseAverage
       pipeline.apply(item).show(10)
     }
   }
