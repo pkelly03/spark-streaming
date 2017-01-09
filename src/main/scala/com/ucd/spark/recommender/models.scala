@@ -6,10 +6,23 @@ object models {
                   related_items: Array[String], average_rating: Double, polarity_ratio: Array[Double],
                   mentions: Array[Double])
 
+  case class ItemEnriched(item_id: String, opinion_ratio: Array[Double], star: Double, item_name: String, related_items: Array[String],
+                          average_rating: Double, polarity_ratio: Array[Double], mentions: Array[Double], better_count: Array[Int],
+                          worse_count: Array[Int], better_pro_scores: Array[Double], worse_cons_scores: Array[Double], pros: Array[Boolean],
+                          cons: Array[Boolean],better_pro_scores_sum: Double,worse_con_scores_sum: Double,is_seed: Boolean, strength: Double,
+                          pros_comp: Array[Boolean], cons_comp: Array[Boolean],pro_non_zeros_count: Int,cons_non_zeros_count: Int,
+                          pro_comp_non_zeros_count: Int,cons_comp_non_zeros_count: Int, is_comp: Boolean, better_average: Double,
+                          worse_average:Double, better_pro_scores_comp_sum: Double, worse_con_scores_comp_sum: Double, better_average_comp: Double,
+                          worse_average_comp: Double, strength_comp: Double, sessionId: String, explanation_id: String, user_id: String, seed_item_id: String)
+
   case class RelatedItems(related_items: Array[String], related_items_sims: Array[Double])
   case class RelatedItem(related_item_id: String)
   case class UserInfo(item_ids: Array[String], mentions: Array[Double], polarity_ratio: Array[Double])
 
+  case class Explanation2(explanation_id: String, user_id: String, session_id: String, seed_item_id: String, target_item_id: String,
+                          target_item_mentions: Array[Double], target_item_sentiment: Array[Double], better_count: Array[Int], worse_count: Array[Int],
+                          better_pro_scores: Array[Double], worse_con_scores: Array[Double],is_seed: Boolean, pros: Array[Boolean], cons: Array[Boolean],
+                          n_pros: Int, n_cons: Int)
   case class Explanation(explanation_id: String, user_id: String, session_id: String, seed_item_id: String, target_item_id: String,
                          target_item_mentions: Array[Double], target_item_sentiment: Array[Double], better_count: Array[Int], worse_count: Array[Int],
                          better_pro_scores: Array[Double], worse_con_scores: Array[Double], is_seed: Boolean, pros: Array[Boolean], cons: Array[Boolean],

@@ -2,7 +2,7 @@ package com.ucd.spark.recommender
 
 import breeze.linalg._
 import breeze.linalg.NumericOps.Arrays._
-import com.ucd.spark.recommender.models.{Item, RelatedItem, RelatedItems, UserInfo}
+import com.ucd.spark.recommender.models._
 import org.apache.spark.sql.functions.{explode, udf}
 import org.apache.spark.sql.{SparkSession, _}
 import org.elasticsearch.spark.sql.EsSparkSQL
@@ -93,7 +93,7 @@ object RecommenderSpark extends App {
           val sessionLength = itemsList.size.toDouble - 1
           (DenseVector(worseCount.toArray) / sessionLength).toArray
         }
-        item.withColumn("worse_cons_scores", worseConScoresFunc('worse_count.as[Seq[Double]])).as[Item]
+        item.withColumn("worse_con_scores", worseConScoresFunc('worse_count.as[Seq[Double]])).as[Item]
       }
     }
 
@@ -117,7 +117,7 @@ object RecommenderSpark extends App {
           val targetItemSentimentLessThanOrEqualToThreshold = polarityRatio.toArray :<= DenseVector.fill[Double](4, SentimentThreshold).toArray
           worseCScores.toArray :> DenseVector.zeros[Double](4).toArray :& targetItemSentimentLessThanOrEqualToThreshold :& userMentionsGreaterThanZero
         }
-        item.withColumn("cons", consFunc('worse_cons_scores.as[Seq[Double]],'polarity_ratio.as[Seq[Double]])).as[Item]
+        item.withColumn("cons", consFunc('worse_con_scores.as[Seq[Double]],'polarity_ratio.as[Seq[Double]])).as[Item]
       }
     }
 
@@ -137,7 +137,7 @@ object RecommenderSpark extends App {
         val betterProScoresSumFunc = udf { (worseConsScores: Seq[Double], cons: Seq[Boolean]) =>
           DenseVector(worseConsScores.toArray).dot(DenseVector(cons.toArray.asDouble))
         }
-        item.withColumn("worse_con_scores_sum", betterProScoresSumFunc('worse_cons_scores.as[Seq[Double]],'cons.as[Seq[Double]])).as[Item]
+        item.withColumn("worse_con_scores_sum", betterProScoresSumFunc('worse_con_scores.as[Seq[Double]],'cons.as[Seq[Double]])).as[Item]
       }
     }
 
@@ -181,7 +181,7 @@ object RecommenderSpark extends App {
         val consCompFunc = udf { (cons: Seq[Boolean], worseConScores: Seq[Double]) =>
           cons.toArray :& betterThanCompellingThreshold(worseConScores.toArray)
         }
-        item.withColumn("cons_comp", consCompFunc('cons.as[Seq[Boolean]],'worse_cons_scores.as[Seq[Double]])).as[Item]
+        item.withColumn("cons_comp", consCompFunc('cons.as[Seq[Boolean]],'worse_con_scores.as[Seq[Double]])).as[Item]
       }
     }
 
@@ -265,7 +265,7 @@ object RecommenderSpark extends App {
         val worseConScoresCompSumFunc = udf { (worseConScoresV: Seq[Double], consComp: Seq[Boolean]) =>
           DenseVector(worseConScoresV.toArray).dot(DenseVector(consComp.toArray.asDouble))
         }
-        item.withColumn("worse_con_scores_comp_sum", worseConScoresCompSumFunc('worse_cons_scores,'cons_comp)).as[Item]
+        item.withColumn("worse_con_scores_comp_sum", worseConScoresCompSumFunc('worse_con_scores,'cons_comp)).as[Item]
       }
     }
 
@@ -296,24 +296,77 @@ object RecommenderSpark extends App {
       }
     }
 
-    def explanationId = new Pipe[Item, Item] {
+    def sessionId = new Pipe[Item, Item] {
       def apply(item: Dataset[Item]): Dataset[Item] = {
         val explanationIdFunc = udf { targetItemId: String =>
-          val sessionId = s"$userId#$seedItemId"
-          s"$sessionId##$targetItemId"
+          s"$userId#$seedItemId"
         }
-        item.withColumn("explanation_id", explanationIdFunc('item_id)).as[Item]
+        item.withColumn("session_id", explanationIdFunc('item_id)).as[Item]
       }
     }
 
-    itemsList.foreach { item =>
+    def explanationId = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+        val explanationIdFunc = udf { (targetItemId: String, sessionId: String) =>
+          s"$sessionId##$targetItemId"
+        }
+        item.withColumn("explanation_id", explanationIdFunc('item_id, 'session_id)).as[Item]
+      }
+    }
+
+    def userIdStore = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+        val userIdStoreFunc = udf { targetItemId: String =>
+          s"$userId"
+        }
+        item.withColumn("user_id", userIdStoreFunc('item_id)).as[Item]
+      }
+    }
+
+    def seedItemStore = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+        val seedItemStoreFunc = udf { targetItemId: String =>
+          s"$seedItemId"
+        }
+        item.withColumn("seed_item_id", seedItemStoreFunc('item_id)).as[Item]
+      }
+    }
+
+    def toExplanation = new Pipe[Item, Explanation2] {
+      def apply(item: Dataset[Item]): Dataset[Explanation2] = {
+        item.show(10)
+        item
+          .select($"explanation_id", $"user_id", $"session_id", $"seed_item_id", $"explanation_id", $"explanation_id".alias("target_item_id"),
+            $"mentions".alias("target_item_mentions"), $"polarity_ratio".alias("target_item_sentiment"), $"better_count", $"worse_count",
+            $"better_pro_scores", $"worse_con_scores", $"is_seed", $"pros", $"cons", $"pro_non_zeros_count".alias("n_pros"),
+            $"cons_non_zeros_count".alias("n_cons")
+          )
+          .as[Explanation2]
+
+//        item.map {
+//          case ItemEnriched(item_id, opinion_ratio, star, item_name, related_items, average_rating, polarity_ratio,
+//          mentions, better_count, worse_count, better_pro_scores, worse_cons_scores, pros, cons,better_pro_scores_sum,
+//          worse_con_scores_sum,is_seed, strength, pros_comp, cons_comp, pro_non_zeros_count, cons_non_zeros_count,
+//          pro_comp_non_zeros_count, cons_comp_non_zeros_count, is_comp, better_average, worse_average, better_pro_scores_comp_sum,
+//          worse_con_scores_comp_sum, better_average_comp, worse_average_comp, strength_comp, session_id, explanation_id,
+//          user_id,seed_item_id) => Explanation(explanation_id, user_id, session_id, seed_item_id, item_id, mentions, null /* TODO FIXME */,better_count,
+//            worse_count, better_pro_scores, worse_cons_scores, is_seed, pros, cons, pro_non_zeros_count, cons_non_zeros_count, strength,
+//            pros_comp, cons_comp, pro_comp_non_zeros_count, cons_comp_non_zeros_count, is_comp, better_average, worse_average, better_average_comp,
+//            worse_average_comp, strength_comp, average_rating /* TODO FIXME */, star, 0 /* TODO FIXME */, average_rating, None, None, None, None, None)
+//        }
+      }
+    }
+
+    val x = itemsList.flatMap { item =>
       val pipeline = betterThanCount | worseThanCount | betterProScores | worseConScores | pros | cons | betterProScoresSum |
         worseConScoresSum | isSeed | strength | prosComp | consComp | proNonZerosCount | consNonZerosCount |
         proCompNonZerosCount | consCompNonZerosCount | isComp | betterAverage | worseAverage | betterProScoresCompSum |
-        worseConScoresCompSum | betterAverageComp | worseAverageComp | strengthComp | explanationId
+        worseConScoresCompSum | betterAverageComp | worseAverageComp | strengthComp | sessionId | explanationId | userIdStore | seedItemStore |
+        toExplanation
 
-      pipeline.apply(item).show(10)
+      pipeline.apply(item).collect
     }
+    println(x)
   }
 
   private def compareAgainstAlternativeSentimentUsingOperator(targetItemSentiment: Array[Double], alternativeSentiment: List[Array[Double]], op: String): List[Array[Int]] = {
