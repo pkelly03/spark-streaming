@@ -296,11 +296,21 @@ object RecommenderSpark extends App {
       }
     }
 
+    def explanationId = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+        val explanationIdFunc = udf { targetItemId: String =>
+          val sessionId = s"$userId#$seedItemId"
+          s"$sessionId##$targetItemId"
+        }
+        item.withColumn("explanation_id", explanationIdFunc('item_id)).as[Item]
+      }
+    }
+
     itemsList.foreach { item =>
       val pipeline = betterThanCount | worseThanCount | betterProScores | worseConScores | pros | cons | betterProScoresSum |
         worseConScoresSum | isSeed | strength | prosComp | consComp | proNonZerosCount | consNonZerosCount |
         proCompNonZerosCount | consCompNonZerosCount | isComp | betterAverage | worseAverage | betterProScoresCompSum |
-        worseConScoresCompSum | betterAverageComp | worseAverageComp | strengthComp
+        worseConScoresCompSum | betterAverageComp | worseAverageComp | strengthComp | explanationId
 
       pipeline.apply(item).show(10)
     }
