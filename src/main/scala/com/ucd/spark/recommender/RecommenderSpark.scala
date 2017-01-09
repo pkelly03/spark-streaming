@@ -287,11 +287,20 @@ object RecommenderSpark extends App {
       }
     }
 
+    def strengthComp = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+        val strengthCompFunc = udf { (betterProScoresCompSum: Double, worseConScoresCompSum: Double) =>
+          betterProScoresCompSum - worseConScoresCompSum
+        }
+        item.withColumn("strength_comp", strengthCompFunc('better_pro_scores_comp_sum,'worse_con_scores_comp_sum)).as[Item]
+      }
+    }
+
     itemsList.foreach { item =>
       val pipeline = betterThanCount | worseThanCount | betterProScores | worseConScores | pros | cons | betterProScoresSum |
         worseConScoresSum | isSeed | strength | prosComp | consComp | proNonZerosCount | consNonZerosCount |
         proCompNonZerosCount | consCompNonZerosCount | isComp | betterAverage | worseAverage | betterProScoresCompSum |
-        worseConScoresCompSum | betterAverageComp | worseAverageComp
+        worseConScoresCompSum | betterAverageComp | worseAverageComp | strengthComp
 
       pipeline.apply(item).show(10)
     }
