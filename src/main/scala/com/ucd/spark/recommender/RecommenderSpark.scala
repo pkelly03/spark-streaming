@@ -399,7 +399,19 @@ object RecommenderSpark extends App {
     })
   }
 
-  generateExplanationsForUserAndItem("rudzud", "3587")
+  def testShapeless() = {
+    case class X(name: String)
+    case class Y(name: String, other: Option[String])
+
+    val createGen = LabelledGeneric[X]
+    val createdGen = LabelledGeneric[Y]
+
+    val c = X("paul")
+    val created: Created = createdGen.from(createGen.to(c))
+    println("Created : " + created)
+  }
+//  generateExplanationsForUserAndItem("rudzud", "3587")
+  testShapeless()
 }
 
 trait Pipe[In, Out] extends Serializable {
