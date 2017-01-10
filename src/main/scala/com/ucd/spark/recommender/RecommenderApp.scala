@@ -60,7 +60,7 @@ object RecommenderApp extends App {
 
     val explanationsDS = spark.createDataset(explanationsWithRanking)
 
-    EsSparkSQL.saveToEs(explanationsDS, "ba:rec_tarelated_explanation/ba:rec_tarelated_explanation", explanationsConfig)
+//    EsSparkSQL.saveToEs(explanationsDS, "ba:rec_tarelated_explanation/ba:rec_tarelated_explanation", explanationsConfig)
   }
 
   sessionHandler("rudzud", "3587")

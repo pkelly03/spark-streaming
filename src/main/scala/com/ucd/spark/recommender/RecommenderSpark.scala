@@ -27,13 +27,17 @@ object RecommenderSpark extends App {
 
   val recRelatedItems: DataFrame = EsSparkSQL.esDF(spark.sqlContext, "ba:rec_tarelated/ba:rec_tarelated", recRelatedConfig)
 
-  def sessionHandler(userId: String, seedItemId: String) = {
+  def generateExplanationsForUserAndItem(userId: String, seedItemId: String) = {
 
     val relatedItems = recRelatedItems
-      .select(explode($"related_items").as("related_item_id"))
+      .select($"related_items", $"related_items_sims")
       .where($"item_id" equalTo seedItemId)
-      .as[String]
-      .collect :+ seedItemId
+      .as[RelatedItems]
+
+    val relatedItemsDs = relatedItems.head()
+    val relatedItemIds = relatedItemsDs.related_items :+ seedItemId
+    val relatedSims: Array[Double] = relatedItemsDs.related_items_sims :+ 1.0
+    val relatedItemsAndSims = relatedItemIds.zip(relatedSims).toMap
 
     val userInfo = users
       .select($"item_ids", $"mentions", $"polarity_ratio")
@@ -44,7 +48,7 @@ object RecommenderSpark extends App {
     val SentimentThreshold = 0.7
     val CompellingThreshold = 0.5
 
-    val itemsList: Seq[Dataset[Item]] = relatedItems.map(relItemId => {
+    val itemsList: Seq[Dataset[Item]] = relatedItemIds.map(relItemId => {
       items
         .select($"item_id", $"opinion_ratio", $"star", $"item_name", $"related_items", $"average_rating", $"polarity_ratio", $"mentions")
         .where($"item_id" equalTo relItemId)
@@ -296,6 +300,15 @@ object RecommenderSpark extends App {
       }
     }
 
+    def recSim = new Pipe[Item, Item] {
+      def apply(item: Dataset[Item]): Dataset[Item] = {
+        val recSimFunc = udf { itemId: String =>
+          relatedItemsAndSims.getOrElse(itemId, 0.0)
+        }
+        item.withColumn("rec_sim", recSimFunc('item_id)).as[Item]
+      }
+    }
+
     def sessionId = new Pipe[Item, Item] {
       def apply(item: Dataset[Item]): Dataset[Item] = {
         val explanationIdFunc = udf { targetItemId: String =>
@@ -332,8 +345,8 @@ object RecommenderSpark extends App {
       }
     }
 
-    def toExplanation = new Pipe[Item, Explanation2] {
-      def apply(item: Dataset[Item]): Dataset[Explanation2] = {
+    def toExplanation = new Pipe[Item, Explanation] {
+      def apply(item: Dataset[Item]): Dataset[Explanation] = {
         item.show(10)
         item
           .select($"explanation_id", $"user_id", $"session_id", $"seed_item_id", $"explanation_id", $"explanation_id".alias("target_item_id"),
@@ -342,42 +355,25 @@ object RecommenderSpark extends App {
             $"cons_non_zeros_count".alias("n_cons"), $"strength", $"pros_comp", $"cons_comp", $"pro_comp_non_zeros_count".alias("n_pros_comp"),
             $"cons_comp_non_zeros_count".alias("n_cons_comp"), $"is_comp", $"better_average".alias("better_avg"), $"worse_average".alias("worse_avg"),
             $"better_average_comp".alias("better_avg_comp"), $"worse_average_comp".alias("worse_avg_comp"), $"strength_comp",
-            $"average_rating".alias("target_item_average_rating")
+            $"average_rating".alias("target_item_average_rating"), $"star".alias("target_item_star"), $"rec_sim", $"average_rating"
           )
-          .as[Explanation2]
-//        pros_comp: Array[Boolean], cons_comp: Array[Boolean]
-//        item.map {
-//          case ItemEnriched(item_id, opinion_ratio, star, item_name, related_items, average_rating, polarity_ratio,
-//          mentions, better_count, worse_count, better_pro_scores, worse_cons_scores, pros, cons,better_pro_scores_sum,
-//          worse_con_scores_sum,is_seed, strength, pros_comp, cons_comp, pro_non_zeros_count, cons_non_zeros_count,
-//          pro_comp_non_zeros_count, cons_comp_non_zeros_count, is_comp, better_average, worse_average, better_pro_scores_comp_sum,
-//          worse_con_scores_comp_sum, better_average_comp, worse_average_comp, strength_comp, session_id, explanation_id,
-//          user_id,seed_item_id) => Explanation(explanation_id, user_id, session_id, seed_item_id, item_id, mentions, null /* TODO FIXME */,better_count,
-//            worse_count, better_pro_scores, worse_cons_scores, is_seed, pros, cons, pro_non_zeros_count, cons_non_zeros_count, strength,
-//            pros_comp, cons_comp, pro_comp_non_zeros_count, cons_comp_non_zeros_count, is_comp, better_average, worse_average, better_average_comp,
-//            worse_average_comp, strength_comp, average_rating /* TODO FIXME */, star, 0 /* TODO FIXME */, average_rating, None, None, None, None, None)
-//        }
-
-//        Explanation(explanationId, userId, sessionId, seedItemId, targetItemId, targetItemMentions, targetItem.polarity_ratio,
-//          betterCount.inner.toArray, worseCount.inner.toArray, betterProScores.toArray, worseConScores.toArray, isSeed, pros, cons,
-//          proNonZerosCount, consNonZerosCount, strength, prosComp, consComp, proCompNonZerosCount, consCompNonZerosCount, isComp,
-//          betterAverage, worseAverage, betterAverageComp, worseAverageComp, strengthComp, targetItem.average_rating, targetItem.star,
-//          recSim, averageRating)
-
-
+          .as[Explanation]
       }
     }
 
-    val x = itemsList.flatMap { item =>
-      val pipeline = betterThanCount | worseThanCount | betterProScores | worseConScores | pros | cons | betterProScoresSum |
+    val initialExplanations = itemsList.flatMap { item =>
+      val explanationPipeline = seedItemStore | betterThanCount | worseThanCount | betterProScores | worseConScores | pros | cons | betterProScoresSum |
         worseConScoresSum | isSeed | strength | prosComp | consComp | proNonZerosCount | consNonZerosCount |
         proCompNonZerosCount | consCompNonZerosCount | isComp | betterAverage | worseAverage | betterProScoresCompSum |
-        worseConScoresCompSum | betterAverageComp | worseAverageComp | strengthComp | sessionId | explanationId | userIdStore | seedItemStore |
-        toExplanation
+        worseConScoresCompSum | betterAverageComp | worseAverageComp | strengthComp | sessionId | explanationId | userIdStore | recSim
 
-      pipeline.apply(item).collect
+
+      val explanationsDs = toExplanation.apply(explanationPipeline.apply(item))
+
+      explanationsDs.collect
     }
-    println(x)
+    println(initialExplanations)
+//    Ranking.enrichWithRanking(initialExplanations)
   }
 
   private def compareAgainstAlternativeSentimentUsingOperator(targetItemSentiment: Array[Double], alternativeSentiment: List[Array[Double]], op: String): List[Array[Int]] = {
@@ -389,7 +385,7 @@ object RecommenderSpark extends App {
     })
   }
 
-  sessionHandler("rudzud", "3587")
+  generateExplanationsForUserAndItem("rudzud", "3587")
 }
 
 trait Pipe[In, Out] extends Serializable {

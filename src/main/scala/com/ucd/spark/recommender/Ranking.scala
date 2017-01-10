@@ -4,7 +4,7 @@ import com.ucd.spark.recommender.models.Explanation
 
 object Ranking {
 
-  def enrichWithRanking(explanations: List[Explanation]): Seq[Explanation] = {
+  def enrichWithRanking(explanations: Seq[Explanation]): Seq[Explanation] = {
 
     val explanationsWithTargetItemStar = ranking(explanations.map(_.target_item_star)).zipWithIndex.map {
       case (r, i) => explanations(i).copy(rank_target_item_star = Some(r))
@@ -36,5 +36,4 @@ object Ranking {
     val ranking = numbersToRank.sortBy(x => -x).zip(Stream from 1).toMap
     numbersToRank.map(ranking)
   }
-
 }
