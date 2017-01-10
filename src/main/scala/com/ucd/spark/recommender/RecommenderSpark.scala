@@ -339,10 +339,13 @@ object RecommenderSpark extends App {
           .select($"explanation_id", $"user_id", $"session_id", $"seed_item_id", $"explanation_id", $"explanation_id".alias("target_item_id"),
             $"mentions".alias("target_item_mentions"), $"polarity_ratio".alias("target_item_sentiment"), $"better_count", $"worse_count",
             $"better_pro_scores", $"worse_con_scores", $"is_seed", $"pros", $"cons", $"pro_non_zeros_count".alias("n_pros"),
-            $"cons_non_zeros_count".alias("n_cons")
+            $"cons_non_zeros_count".alias("n_cons"), $"strength", $"pros_comp", $"cons_comp", $"pro_comp_non_zeros_count".alias("n_pros_comp"),
+            $"cons_comp_non_zeros_count".alias("n_cons_comp"), $"is_comp", $"better_average".alias("better_avg"), $"worse_average".alias("worse_avg"),
+            $"better_average_comp".alias("better_avg_comp"), $"worse_average_comp".alias("worse_avg_comp"), $"strength_comp",
+            $"average_rating".alias("target_item_average_rating")
           )
           .as[Explanation2]
-
+//        pros_comp: Array[Boolean], cons_comp: Array[Boolean]
 //        item.map {
 //          case ItemEnriched(item_id, opinion_ratio, star, item_name, related_items, average_rating, polarity_ratio,
 //          mentions, better_count, worse_count, better_pro_scores, worse_cons_scores, pros, cons,better_pro_scores_sum,
@@ -354,6 +357,14 @@ object RecommenderSpark extends App {
 //            pros_comp, cons_comp, pro_comp_non_zeros_count, cons_comp_non_zeros_count, is_comp, better_average, worse_average, better_average_comp,
 //            worse_average_comp, strength_comp, average_rating /* TODO FIXME */, star, 0 /* TODO FIXME */, average_rating, None, None, None, None, None)
 //        }
+
+//        Explanation(explanationId, userId, sessionId, seedItemId, targetItemId, targetItemMentions, targetItem.polarity_ratio,
+//          betterCount.inner.toArray, worseCount.inner.toArray, betterProScores.toArray, worseConScores.toArray, isSeed, pros, cons,
+//          proNonZerosCount, consNonZerosCount, strength, prosComp, consComp, proCompNonZerosCount, consCompNonZerosCount, isComp,
+//          betterAverage, worseAverage, betterAverageComp, worseAverageComp, strengthComp, targetItem.average_rating, targetItem.star,
+//          recSim, averageRating)
+
+
       }
     }
 
