@@ -9,7 +9,8 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-sql" % sparkVersion,
   "org.apache.spark" %% "spark-mllib" % sparkVersion,
   "org.elasticsearch" %% "elasticsearch-spark-20" % elasticSearchSparkVersion,
-  "ch.qos.logback" % "logback-classic" % "1.1.8"
+  "ch.qos.logback" % "logback-classic" % "1.1.8",
+  "com.chuusai" %% "shapeless" % "2.3.2"
 )
 
 resolvers += "clojars" at "https://clojars.org/repo"

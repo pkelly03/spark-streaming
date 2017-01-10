@@ -7,6 +7,7 @@ import org.apache.spark.sql.functions.{explode, udf}
 import org.apache.spark.sql.{SparkSession, _}
 import org.elasticsearch.spark.sql.EsSparkSQL
 import org.apache.spark.sql.functions.col
+import shapeless.LabelledGeneric
 
 object RecommenderSpark extends App {
 
@@ -367,7 +368,7 @@ object RecommenderSpark extends App {
 //      betterAverage, worseAverage, betterAverageComp, worseAverageComp, strengthComp, targetItem.average_rating, targetItem.star,
 //      recSim, averageRating)
 
-    val explanationsDatasets = itemsList.map { item =>
+    val partialExplanations = itemsList.flatMap { item =>
       val explanationPipeline = seedItemStore | betterThanCount | worseThanCount | betterProScores | worseConScores | pros | cons | betterProScoresSum |
         worseConScoresSum | isSeed | strength | prosComp | consComp | proNonZerosCount | consNonZerosCount |
         proCompNonZerosCount | consCompNonZerosCount | isComp | betterAverage | worseAverage | betterProScoresCompSum |
@@ -376,16 +377,17 @@ object RecommenderSpark extends App {
       val allCalculations = explanationPipeline.apply(item)
       val explanationsDs = toExplanation.apply(allCalculations)
 
-      explanationsDs
+      explanationsDs.collect()
     }
 
-    println(explanationsDatasets)
-    val y = explanationsDatasets.foldLeft(spark.emptyDataset[ExplanationSpark])((acc, ds) => {
-      acc.union(ds).as[ExplanationSpark]
-    })
-    println(y)
-//    println(initialExplanations)
-//    Ranking.enrichWithRanking(initialExplanations)
+    val partialGen = LabelledGeneric[ExplanationSpark]
+    val explanationGen = LabelledGeneric[Explanation]
+
+    val explanationsWithoutRanking = partialExplanations.map { partial => explanationGen.from(partialGen.to(partial)) }
+
+    println(explanationsWithoutRanking)
+
+    Ranking.enrichWithRanking(explanationsWithoutRanking)
   }
 
   private def compareAgainstAlternativeSentimentUsingOperator(targetItemSentiment: Array[Double], alternativeSentiment: List[Array[Double]], op: String): List[Array[Int]] = {
