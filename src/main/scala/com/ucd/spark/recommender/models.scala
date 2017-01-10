@@ -19,6 +19,14 @@ object models {
   case class RelatedItem(related_item_id: String)
   case class UserInfo(item_ids: Array[String], mentions: Array[Double], polarity_ratio: Array[Double])
 
+  case class ExplanationSpark(explanation_id: String, user_id: String, session_id: String, seed_item_id: String, target_item_id: String,
+                         target_item_mentions: Array[Double], target_item_sentiment: Array[Double], better_count: Array[Double], worse_count: Array[Double],
+                         better_pro_scores: Array[Double], worse_con_scores: Array[Double], is_seed: Boolean, pros: Array[Boolean], cons: Array[Boolean],
+                         n_pros: Int, n_cons: Int, strength: Double, pros_comp: Array[Boolean], cons_comp: Array[Boolean],
+                         n_pros_comp: Int, n_cons_comp: Int, is_comp: Boolean, better_avg: Double, worse_avg: Double,
+                         better_avg_comp: Double, worse_avg_comp: Double, strength_comp: Double, target_item_average_rating: Double,
+                         target_item_star: Double, rec_sim: Double, average_rating: Double)
+
   case class Explanation(explanation_id: String, user_id: String, session_id: String, seed_item_id: String, target_item_id: String,
                          target_item_mentions: Array[Double], target_item_sentiment: Array[Double], better_count: Array[Int], worse_count: Array[Int],
                          better_pro_scores: Array[Double], worse_con_scores: Array[Double], is_seed: Boolean, pros: Array[Boolean], cons: Array[Boolean],

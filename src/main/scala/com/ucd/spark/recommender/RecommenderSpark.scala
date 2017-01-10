@@ -345,11 +345,11 @@ object RecommenderSpark extends App {
       }
     }
 
-    def toExplanation = new Pipe[Item, Explanation] {
-      def apply(item: Dataset[Item]): Dataset[Explanation] = {
+    def toExplanation = new Pipe[Item, ExplanationSpark] {
+      def apply(item: Dataset[Item]): Dataset[ExplanationSpark] = {
         item.show(10)
         item
-          .select($"explanation_id", $"user_id", $"session_id", $"seed_item_id", $"explanation_id", $"explanation_id".alias("target_item_id"),
+          .select($"explanation_id", $"user_id", $"session_id", $"seed_item_id", $"item_id".alias("target_item_id"),
             $"mentions".alias("target_item_mentions"), $"polarity_ratio".alias("target_item_sentiment"), $"better_count", $"worse_count",
             $"better_pro_scores", $"worse_con_scores", $"is_seed", $"pros", $"cons", $"pro_non_zeros_count".alias("n_pros"),
             $"cons_non_zeros_count".alias("n_cons"), $"strength", $"pros_comp", $"cons_comp", $"pro_comp_non_zeros_count".alias("n_pros_comp"),
@@ -357,30 +357,42 @@ object RecommenderSpark extends App {
             $"better_average_comp".alias("better_avg_comp"), $"worse_average_comp".alias("worse_avg_comp"), $"strength_comp",
             $"average_rating".alias("target_item_average_rating"), $"star".alias("target_item_star"), $"rec_sim", $"average_rating"
           )
-          .as[Explanation]
+          .as[ExplanationSpark]
       }
     }
 
-    val initialExplanations = itemsList.flatMap { item =>
+//    Explanation(explanationId, userId, sessionId, seedItemId, targetItemId, targetItemMentions, targetItem.polarity_ratio,
+//      betterCount.inner.toArray, worseCount.inner.toArray, betterProScores.toArray, worseConScores.toArray, isSeed, pros, cons,
+//      proNonZerosCount, consNonZerosCount, strength, prosComp, consComp, proCompNonZerosCount, consCompNonZerosCount, isComp,
+//      betterAverage, worseAverage, betterAverageComp, worseAverageComp, strengthComp, targetItem.average_rating, targetItem.star,
+//      recSim, averageRating)
+
+    val explanationsDatasets = itemsList.map { item =>
       val explanationPipeline = seedItemStore | betterThanCount | worseThanCount | betterProScores | worseConScores | pros | cons | betterProScoresSum |
         worseConScoresSum | isSeed | strength | prosComp | consComp | proNonZerosCount | consNonZerosCount |
         proCompNonZerosCount | consCompNonZerosCount | isComp | betterAverage | worseAverage | betterProScoresCompSum |
         worseConScoresCompSum | betterAverageComp | worseAverageComp | strengthComp | sessionId | explanationId | userIdStore | recSim
 
+      val allCalculations = explanationPipeline.apply(item)
+      val explanationsDs = toExplanation.apply(allCalculations)
 
-      val explanationsDs = toExplanation.apply(explanationPipeline.apply(item))
-
-      explanationsDs.collect
+      explanationsDs
     }
-    println(initialExplanations)
+
+    println(explanationsDatasets)
+    val y = explanationsDatasets.foldLeft(spark.emptyDataset[ExplanationSpark])((acc, ds) => {
+      acc.union(ds).as[ExplanationSpark]
+    })
+    println(y)
+//    println(initialExplanations)
 //    Ranking.enrichWithRanking(initialExplanations)
   }
 
   private def compareAgainstAlternativeSentimentUsingOperator(targetItemSentiment: Array[Double], alternativeSentiment: List[Array[Double]], op: String): List[Array[Int]] = {
     alternativeSentiment.map((alternative: Array[Double]) => {
       (op match {
-        case "gt" => targetItemSentiment.:>(alternative)
-        case "lte" => targetItemSentiment.:<=(alternative)
+        case "gt" => targetItemSentiment :> alternative
+        case "lte" => targetItemSentiment :<= alternative
       }).map { b => if (b) 1 else 0 }
     })
   }
