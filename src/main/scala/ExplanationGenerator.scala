@@ -91,11 +91,11 @@ object ExplanationGenerator {
 
         val explanationId: String = s"$sessionId##$targetItemId"
 
-        val recSim: Double = relatedItemsAndSims.get(targetItemId).getOrElse(0)
+        val recSim: Double = relatedItemsAndSims.getOrElse(targetItemId, 0)
         val averageRating: Double = sessionItemInfo.get(targetItemId).map(_.average_rating).getOrElse(0)
 
         Explanation(explanationId, userId, sessionId, seedItemId, targetItemId, targetItemMentions, targetItem.polarity_ratio,
-          betterCount.inner.toArray, worseCount.inner.toArray, betterProScores.toArray, worseConScores.toArray, isSeed, pros, cons,
+          betterCount.inner.asDouble.toArray, worseCount.inner.asDouble.toArray, betterProScores.toArray, worseConScores.toArray, isSeed, pros, cons,
           proNonZerosCount, consNonZerosCount, strength, prosComp, consComp, proCompNonZerosCount, consCompNonZerosCount, isComp,
           betterAverage, worseAverage, betterAverageComp, worseAverageComp, strengthComp, targetItem.average_rating, targetItem.star,
           recSim, averageRating)

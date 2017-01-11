@@ -347,9 +347,8 @@ object RecommenderSpark extends App {
     }
 
     def toExplanation = new Pipe[Item, ExplanationSpark] {
-      def apply(item: Dataset[Item]): Dataset[ExplanationSpark] = {
-        item.show(10)
-        item
+      def apply(itemDs: Dataset[Item]): Dataset[ExplanationSpark] = {
+        itemDs
           .select($"explanation_id", $"user_id", $"session_id", $"seed_item_id", $"item_id".alias("target_item_id"),
             $"mentions".alias("target_item_mentions"), $"polarity_ratio".alias("target_item_sentiment"), $"better_count", $"worse_count",
             $"better_pro_scores", $"worse_con_scores", $"is_seed", $"pros", $"cons", $"pro_non_zeros_count".alias("n_pros"),
@@ -362,12 +361,6 @@ object RecommenderSpark extends App {
       }
     }
 
-//    Explanation(explanationId, userId, sessionId, seedItemId, targetItemId, targetItemMentions, targetItem.polarity_ratio,
-//      betterCount.inner.toArray, worseCount.inner.toArray, betterProScores.toArray, worseConScores.toArray, isSeed, pros, cons,
-//      proNonZerosCount, consNonZerosCount, strength, prosComp, consComp, proCompNonZerosCount, consCompNonZerosCount, isComp,
-//      betterAverage, worseAverage, betterAverageComp, worseAverageComp, strengthComp, targetItem.average_rating, targetItem.star,
-//      recSim, averageRating)
-
     val partialExplanations = itemsList.flatMap { item =>
       val explanationPipeline = seedItemStore | betterThanCount | worseThanCount | betterProScores | worseConScores | pros | cons | betterProScoresSum |
         worseConScoresSum | isSeed | strength | prosComp | consComp | proNonZerosCount | consNonZerosCount |
@@ -376,18 +369,11 @@ object RecommenderSpark extends App {
 
       val allCalculations = explanationPipeline.apply(item)
       val explanationsDs = toExplanation.apply(allCalculations)
-
       explanationsDs.collect()
     }
 
-    val partialGen = LabelledGeneric[ExplanationSpark]
-    val explanationGen = LabelledGeneric[Explanation]
-
-    val explanationsWithoutRanking = partialExplanations.map { partial => explanationGen.from(partialGen.to(partial)) }
-
-    println(explanationsWithoutRanking)
-
-    Ranking.enrichWithRanking(explanationsWithoutRanking)
+    val explanations: Seq[Explanation] = Ranking.enrichWithRankingSpark(partialExplanations)
+    println("Explanations : " + explanations.size)
   }
 
   private def compareAgainstAlternativeSentimentUsingOperator(targetItemSentiment: Array[Double], alternativeSentiment: List[Array[Double]], op: String): List[Array[Int]] = {
@@ -399,19 +385,7 @@ object RecommenderSpark extends App {
     })
   }
 
-  def testShapeless() = {
-    case class X(name: String)
-    case class Y(name: String, other: Option[String])
-
-    val createGen = LabelledGeneric[X]
-    val createdGen = LabelledGeneric[Y]
-
-    val c = X("paul")
-    val created: Created = createdGen.from(createGen.to(c))
-    println("Created : " + created)
-  }
-//  generateExplanationsForUserAndItem("rudzud", "3587")
-  testShapeless()
+  generateExplanationsForUserAndItem("rudzud", "3587")
 }
 
 trait Pipe[In, Out] extends Serializable {
