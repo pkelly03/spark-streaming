@@ -17,7 +17,8 @@ object models {
 
   case class RelatedItems(related_items: Array[String], related_items_sims: Array[Double])
   case class RelatedItem(related_item_id: String)
-  case class UserInfo(item_ids: Array[String], mentions: Array[Double], polarity_ratio: Array[Double])
+  case class UserInfo(item_id: Array[String], mentions: Array[Double], polarity_ratio: Array[Double])
+  case class UserInfoSpark(user_id: String, item_id: String, mentions: Array[Double], polarity_ratio: Array[Double])
 
   case class ExplanationSpark(explanation_id: String, user_id: String, session_id: String, seed_item_id: String, target_item_id: String,
                          target_item_mentions: Array[Double], target_item_sentiment: Array[Double], better_count: Array[Double], worse_count: Array[Double],
@@ -26,10 +27,6 @@ object models {
                          n_pros_comp: Int, n_cons_comp: Int, is_comp: Boolean, better_avg: Double, worse_avg: Double,
                          better_avg_comp: Double, worse_avg_comp: Double, strength_comp: Double, target_item_average_rating: Double,
                          target_item_star: Double, rec_sim: Double, average_rating: Double)
-
-  case class Explanation1(explanation_id: String,
-                          rank_target_item_average_rating: Option[Int] = None, rank_average_rating: Option[Int] = None, rank_rec_sim: Option[Int] = None,
-                          rank_strength: Option[Int] = None, rank_strength_comp: Option[Int] = None)
 
   case class Explanation(explanation_id: String, user_id: String, session_id: String, seed_item_id: String, target_item_id: String,
                          target_item_mentions: Array[Double], target_item_sentiment: Array[Double], better_count: Array[Double], worse_count: Array[Double],
