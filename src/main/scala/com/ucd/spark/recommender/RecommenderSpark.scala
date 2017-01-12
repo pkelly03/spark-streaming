@@ -29,11 +29,12 @@ object RecommenderSpark extends App with StrictLogging {
   time {
     users
       .select($"user_id", explode($"item_ids").as("item_id"), $"mentions", $"polarity_ratio")
-      .as[UserInfoSpark].foreach { user =>
+      .as[UserInfoSpark].collect.foreach { user =>
         logger.info(s"Generating explanation for user id : ${user.user_id}, and item id : ${user.item_id}")
         val explanations = ExplanationGeneratorSpark.generateExplanationsForUserAndItem(user, spark, recRelatedItems, items)
         val explanationsDS = spark.createDataset(explanations)
         EsSparkSQL.saveToEs(explanationsDS, "ba:rec_tarelated_explanation/ba:rec_tarelated_explanation", explanationsConfig)
+        logger.info(s"Finished generating explanation for user id : ${user.user_id}, and item id : ${user.item_id}")
       }
   }
 }
